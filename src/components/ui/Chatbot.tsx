@@ -34,6 +34,14 @@ export default function ChatBot() {
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (!isSpeaking && messages.length > 0) {
+      const last = messages[messages.length - 1];
+      if (last.role === 'assistant') speak(last.content);
+    }
+    // eslint-disable-next-line
+  }, [messages]);
+
   const handleUserMessage: SubmitHandler<FormValues> = async (data) => {
     const userInput = data.input.trim();
     if (!userInput) return;
@@ -43,9 +51,12 @@ export default function ChatBot() {
     setIsLoading(true);
     reset();
 
+    const userId = ""; // TODO: Replace with actual user ID from auth context or props
+    const resume = ""; // TODO: Replace with actual resume from user profile or state
+
     const response = await fetch('/api/ai', {
       method: 'POST',
-      body: JSON.stringify({ query: userInput }),
+      body: JSON.stringify({ query: userInput, userId, resume }),
       headers: { 'Content-Type': 'application/json' },
     }).then(res => res.json());
 
@@ -123,7 +134,7 @@ export default function ChatBot() {
                 <div className="flex items-start gap-2">
                   <AvatarIcon><Bot className="w-4 h-4" /></AvatarIcon>
                   <div className="rounded-lg px-3 py-2 bg-gray-100">
-                    <LoaderCircle className="w-4 h-4 animate-spin" />
+                    <LoaderCircle className="w-4 h-4" />
                   </div>
                 </div>
               )}
