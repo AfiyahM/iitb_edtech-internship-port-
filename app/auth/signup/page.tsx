@@ -13,6 +13,11 @@ import { ArrowLeft, Github, Mail, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { createClient } from "@supabase/supabase-js"
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -52,44 +57,69 @@ export default function SignUpPage() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  e.preventDefault();
 
-    if (!validateForm()) return
+  if (!validateForm()) return;
+  setIsLoading(true);
 
-    setIsLoading(true)
+  try {
+    // 1. Sign up the user in Supabase Auth
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+    });
 
-    try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        toast({
-          title: "Account created successfully!",
-          description: "Welcome to InternDeck. You can now start exploring internships.",
-        })
-        router.push("/dashboard")
-      } else {
-        toast({
-          title: "Error creating account",
-          description: data.error || "Something went wrong. Please try again.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
+    if (signUpError || !signUpData.user) {
       toast({
-        title: "Error",
-        description: "Network error. Please check your connection and try again.",
+        title: "Signup Failed",
+        description: signUpError?.message || "Could not create account.",
         variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
+      });
+      return;
     }
+
+    // 2. Save the user profile in the 'profiles' table
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: signUpData.user.id,
+      email: formData.email,
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      university: formData.university,
+      major: formData.major,
+      graduation_year: formData.graduationYear,
+      career_goal: formData.careerGoal,
+      skills: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    if (profileError) {
+      toast({
+        title: "Profile Save Error",
+        description: profileError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 3. Success
+    toast({
+      title: "Account Created",
+      description: "Welcome to InternDeck! Redirecting to dashboard...",
+    });
+
+    router.push("/dashboard");
+  } catch (err) {
+    toast({
+      title: "Unexpected Error",
+      description: "Something went wrong. Please try again.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
   }
+};
+
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
