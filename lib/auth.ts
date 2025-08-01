@@ -1,4 +1,4 @@
-import { supabase } from "./supabase"
+import { supabase } from "@/lib/supabaseClient"
 
 export interface UserProfile {
   id: string
@@ -23,19 +23,27 @@ export interface UserProfile {
 export async function getCurrentUser(): Promise<UserProfile | null> {
   try {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession()
 
-    if (!user) return null
-
-    const { data: profile, error } = await supabase.from("users").select("*").eq("id", user.id).single()
-
-    if (error) {
-      console.error("Error fetching user profile:", error)
+    if (sessionError || !session || !session.user) {
+      console.error("Session error:", sessionError)
       return null
     }
 
-    return profile
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .maybeSingle()
+
+    if (error) {
+      console.error("Profile fetch error:", error)
+      return null
+    }
+
+    return data
   } catch (error) {
     console.error("Error getting current user:", error)
     return null
@@ -45,15 +53,15 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
 export async function updateUserProfile(updates: Partial<UserProfile>): Promise<boolean> {
   try {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      data: { session },
+    } = await supabase.auth.getSession()
 
-    if (!user) return false
+    if (!session?.user) return false
 
     const { error } = await supabase
-      .from("users")
+      .from("profiles") // ✅ fixed table name
       .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", user.id)
+      .eq("id", session.user.id)
 
     if (error) {
       console.error("Error updating user profile:", error)
@@ -70,22 +78,26 @@ export async function updateUserProfile(updates: Partial<UserProfile>): Promise<
 export async function uploadAvatar(file: File): Promise<string | null> {
   try {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      data: { session },
+    } = await supabase.auth.getSession()
 
-    if (!user) return null
+    if (!session?.user) return null
 
     const fileExt = file.name.split(".").pop()
-    const fileName = `${user.id}.${fileExt}`
+    const fileName = `${session.user.id}.${fileExt}`
 
-    const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, file, { upsert: true })
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(fileName, file, { upsert: true })
 
     if (uploadError) {
       console.error("Error uploading avatar:", uploadError)
       return null
     }
 
-    const { data } = supabase.storage.from("avatars").getPublicUrl(fileName)
+    const { data } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(fileName)
 
     return data.publicUrl
   } catch (error) {
