@@ -4,15 +4,13 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import { AIChatProvider } from "@/components/ai-chat-provider"
+import { AIChatWidget } from "@/components/ai-chat-widget"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "InternDeck - AI-Powered Internship Platform",
-  description:
-    "Discover and prepare for internships with AI-powered recommendations, skill assessments, and mock interviews.",
-    generator: 'v0.dev'
+  description: "Find and prepare for internships with AI-powered career assistance",
 }
 
 export default function RootLayout({
@@ -23,11 +21,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <AIChatProvider>
-            {children}
-            <Toaster />
-          </AIChatProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <AIChatWidget />
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
