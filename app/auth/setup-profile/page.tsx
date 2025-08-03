@@ -71,12 +71,11 @@ export default function SetupProfilePage() {
 
     try {
       const { error } = await supabase
-        .from("profiles")
+        .from("users")
         .insert({
           id: user.id,
           email: user.email,
           ...formData,
-          skills: [],
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

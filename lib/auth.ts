@@ -66,28 +66,43 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
 
 export async function getCurrentUser(): Promise<UserProfile | null> {
   try {
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
-
-    if (sessionError || !session || !session.user) {
-      console.error("Session error:", sessionError)
+    const { data: { session }, error } = await supabase.auth.getSession()
+    
+    if (error || !session) {
       return null
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
+    // Get user profile from users table
+    const { data: user, error: userError } = await supabase
+      .from("users")
       .select("*")
       .eq("id", session.user.id)
-      .maybeSingle()
+      .single()
 
-    if (error) {
-      console.error("Profile fetch error:", error)
+    if (userError || !user) {
+      console.error("Error fetching user profile:", userError)
       return null
     }
 
-    return data
+    return {
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      university: user.university,
+      major: user.major,
+      graduation_year: user.graduation_year,
+      career_goal: user.career_goal,
+      skills: user.skills || [],
+      avatar_url: user.avatar_url,
+      phone: user.phone,
+      location: user.location,
+      bio: user.bio,
+      linkedin: user.linkedin,
+      github: user.github,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    }
   } catch (error) {
     console.error("Error getting current user:", error)
     return null
@@ -103,7 +118,7 @@ export async function updateUserProfile(updates: Partial<UserProfile>): Promise<
     if (!session?.user) return false
 
     const { error } = await supabase
-      .from("profiles") // ✅ fixed table name
+      .from("users")
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq("id", session.user.id)
 

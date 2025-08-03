@@ -78,8 +78,8 @@ export default function SignUpPage() {
       return;
     }
 
-    // 2. Save the user profile in the 'profiles' table
-    const { error: profileError } = await supabase.from("profiles").insert({
+    // 2. Save the user profile in the 'users' table
+    const { error: profileError } = await supabase.from("users").insert({
       id: signUpData.user.id,
       email: formData.email,
       first_name: formData.firstName,
@@ -88,7 +88,6 @@ export default function SignUpPage() {
       major: formData.major,
       graduation_year: formData.graduationYear,
       career_goal: formData.careerGoal,
-      skills: [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });

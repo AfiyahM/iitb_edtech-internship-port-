@@ -23,7 +23,7 @@ export default function AuthCallbackPage() {
         if (data.session) {
           // Check if user profile exists
           const { data: profile, error: profileError } = await supabase
-            .from("profiles")
+            .from("users")
             .select("*")
             .eq("id", data.session.user.id)
             .maybeSingle()
