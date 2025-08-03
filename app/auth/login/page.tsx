@@ -11,11 +11,13 @@ import { ArrowLeft, Github, Mail, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { signInWithGoogle } from "@/lib/auth"
 
 export default function LoginPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -80,10 +82,40 @@ export default function LoginPage() {
     }
   }
 
-  const handleOAuthLogin = async (provider: "github" | "google") => {
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true)
+    
+    try {
+      const result = await signInWithGoogle()
+      
+      if (result.success) {
+        toast({
+          title: "Redirecting...",
+          description: "Please complete the sign-in process in the new window.",
+        })
+        // The redirect will happen automatically
+      } else {
+        toast({
+          title: "Google Sign-in Failed",
+          description: result.error || "Failed to sign in with Google. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGoogleLoading(false)
+    }
+  }
+
+  const handleGithubLogin = async () => {
     toast({
-      title: "OAuth Integration",
-      description: `${provider} login will be available soon!`,
+      title: "GitHub Integration",
+      description: "GitHub login will be available soon!",
     })
   }
 
@@ -108,8 +140,8 @@ export default function LoginPage() {
               <Button
                 variant="outline"
                 className="w-full bg-transparent"
-                onClick={() => handleOAuthLogin("github")}
-                disabled={isLoading}
+                onClick={handleGithubLogin}
+                disabled={isLoading || isGoogleLoading}
               >
                 <Github className="h-4 w-4 mr-2" />
                 GitHub
@@ -117,10 +149,14 @@ export default function LoginPage() {
               <Button
                 variant="outline"
                 className="w-full bg-transparent"
-                onClick={() => handleOAuthLogin("google")}
-                disabled={isLoading}
+                onClick={handleGoogleSignIn}
+                disabled={isLoading || isGoogleLoading}
               >
-                <Mail className="h-4 w-4 mr-2" />
+                {isGoogleLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Mail className="h-4 w-4 mr-2" />
+                )}
                 Google
               </Button>
             </div>
@@ -143,7 +179,7 @@ export default function LoginPage() {
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   className={errors.email ? "border-red-500" : ""}
-                  disabled={isLoading}
+                  disabled={isLoading || isGoogleLoading}
                 />
                 {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
               </div>
@@ -156,7 +192,7 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={(e) => handleInputChange("password", e.target.value)}
                   className={errors.password ? "border-red-500" : ""}
-                  disabled={isLoading}
+                  disabled={isLoading || isGoogleLoading}
                 />
                 {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
               </div>
@@ -167,7 +203,7 @@ export default function LoginPage() {
                 </Link>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
