@@ -27,6 +27,10 @@ import {
   Plus,
   ExternalLink,
   Loader2,
+  MapPin,
+  Building,
+  Eye,
+  Share2,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -261,22 +265,22 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         {/* Enhanced Welcome Section */}
-        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white rounded-xl p-6 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white rounded-xl p-4 sm:p-6 relative overflow-hidden">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold mb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex-1">
+                <h1 className="text-xl sm:text-2xl font-bold mb-2">
                   {getGreeting()}, {user?.first_name || "there"}! 👋
                 </h1>
-                <p className="opacity-90 mb-4">
+                <p className="opacity-90 mb-4 text-sm sm:text-base">
                   You have {recommendedInternships.filter((i) => i.isNew).length} new internship matches and{" "}
                   {unreadNotifications} notifications waiting for you.
                 </p>
-                <div className="flex gap-3">
-                  <Button variant="secondary" size="sm" asChild>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <Button variant="secondary" size="sm" asChild className="w-full sm:w-auto">
                     <Link href="/dashboard/search">
                       <Briefcase className="h-4 w-4 mr-2" />
                       Explore Internships
@@ -285,7 +289,7 @@ export default function DashboardPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    className="bg-white/10 border-white/20 text-white hover:bg-white/20 w-full sm:w-auto"
                     asChild
                   >
                     <Link href="/dashboard/interviews/mock">
@@ -296,8 +300,8 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="hidden md:block">
-                <div className="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center">
-                  <Target className="h-12 w-12" />
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white/10 rounded-full flex items-center justify-center">
+                  <Target className="h-8 w-8 sm:h-12 sm:w-12" />
                 </div>
               </div>
             </div>
@@ -305,14 +309,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Enhanced Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Profile Strength</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{stats.profileStrength}%</div>
+              <div className="text-xl sm:text-2xl font-bold text-blue-600">{stats.profileStrength}%</div>
               <Progress value={stats.profileStrength} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-2">
                 +5% from last week
@@ -329,7 +333,7 @@ export default function DashboardPage() {
               <Briefcase className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.applications}</div>
+              <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.applications}</div>
               <div className="flex items-center gap-2 mt-2">
                 <div className="flex -space-x-1">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -347,7 +351,7 @@ export default function DashboardPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{stats.skillProgress}%</div>
+              <div className="text-xl sm:text-2xl font-bold text-purple-600">{stats.skillProgress}%</div>
               <Progress value={stats.skillProgress} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-2">
                 React.js learning path
@@ -364,7 +368,7 @@ export default function DashboardPage() {
               <Award className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{stats.interviewScore}/10</div>
+              <div className="text-xl sm:text-2xl font-bold text-orange-600">{stats.interviewScore}/10</div>
               <div className="flex items-center gap-1 mt-2">
                 {[...Array(5)].map((_, i) => (
                   <Star
@@ -381,7 +385,7 @@ export default function DashboardPage() {
         {/* Weekly Goals Progress */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5 text-blue-600" />
@@ -423,11 +427,11 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Enhanced Recommended Internships */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Briefcase className="h-5 w-5 text-blue-600" />
@@ -446,33 +450,35 @@ export default function DashboardPage() {
             <CardContent className="space-y-4">
               {recommendedInternships.map((internship) => (
                 <div key={internship.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-3">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{internship.title}</h3>
+                      <h3 className="font-semibold text-sm sm:text-base">{internship.title}</h3>
                       {internship.isNew && (
                         <Badge variant="secondary" className="text-xs">
                           New
                         </Badge>
                       )}
                     </div>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                    <Badge variant="secondary" className="bg-green-100 text-green-800 w-fit">
                       {internship.matchScore}% Match
                     </Badge>
                   </div>
 
                   <div className="space-y-2 mb-3">
-                    <p className="text-sm text-muted-foreground">
-                      {internship.company} • {internship.location}
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Building className="h-3 w-3" />
+                      {internship.company} • <MapPin className="h-3 w-3" />
+                      {internship.location}
                     </p>
                     <p className="text-sm">{internship.description}</p>
 
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-muted-foreground gap-1">
                       <span>Salary: {internship.salary}</span>
                       <span>Deadline: {new Date(internship.deadline).toLocaleDateString()}</span>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 mb-3">
+                  <div className="flex flex-wrap gap-2 mb-3">
                     {internship.skills.map((skill) => (
                       <Badge key={skill} variant="outline" className="text-xs">
                         {skill}
@@ -480,7 +486,7 @@ export default function DashboardPage() {
                     ))}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Button size="sm" className="flex-1" onClick={() => applyToInternship(internship)}>
                       Apply Now
                     </Button>
@@ -618,7 +624,7 @@ export default function DashboardPage() {
         {/* Enhanced Recent Activity */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5 text-gray-600" />

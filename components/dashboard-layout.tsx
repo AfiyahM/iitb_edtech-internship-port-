@@ -16,12 +16,13 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +51,8 @@ import {
   Moon,
   Sun,
   Zap,
+  Menu,
+  X,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -57,22 +60,15 @@ import { useTheme } from "next-themes"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
 
-const navigation = [
-  {
-    title: "Overview",
-    items: [
-      { title: "Dashboard", url: "/dashboard", icon: Home, badge: null },
-      { title: "Search Internships", url: "/dashboard/search", icon: Search, badge: "12 New" },
-    ],
-  },
-  {
-    title: "Preparation",
-    items: [
-      { title: "Resume Builder", url: "/dashboard/resume", icon: FileText, badge: "AI Ready" },
-      { title: "Learning Paths", url: "/dashboard/learning", icon: BookOpen, badge: "67%" },
-      { title: "Mock Interviews", url: "/dashboard/interviews", icon: MessageSquare, badge: "3 New" },
-    ],
-  },
+const topNavigation = [
+  { title: "Dashboard", url: "/dashboard", icon: Home, badge: null },
+  { title: "Search Internships", url: "/dashboard/search", icon: Search, badge: "12 New" },
+  { title: "Resume Builder", url: "/dashboard/resume", icon: FileText, badge: "AI Ready" },
+  { title: "Learning Paths", url: "/dashboard/learning", icon: BookOpen, badge: "67%" },
+  { title: "Mock Interviews", url: "/dashboard/interviews", icon: MessageSquare, badge: "3 New" },
+]
+
+const sidebarNavigation = [
   {
     title: "Progress",
     items: [
@@ -102,6 +98,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme()
   const { toast } = useToast()
   const { user, loading } = useUser()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const [userStats, setUserStats] = useState<UserStats>({
     profileCompletion: 85,
@@ -152,6 +150,109 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setIsMobileMenuOpen(false)} />
+          <div className="fixed left-0 top-0 h-full w-80 bg-white dark:bg-zinc-950 border-r">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-2">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 text-white text-lg font-bold">
+                  I
+                </div>
+                <span className="font-semibold">InternDeck</span>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Search Bar in Mobile Menu */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {/* Top Navigation in Mobile Menu */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Quick Access
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {topNavigation.map((item) => {
+                    const isActive = pathname === item.url
+                    return (
+                      <Link
+                        key={item.title}
+                        href={item.url}
+                        className={`flex flex-col items-center justify-center p-3 rounded-lg text-sm transition-colors ${
+                          isActive
+                            ? "bg-blue-50 text-blue-700 border border-blue-200"
+                            : "hover:bg-gray-50 border border-transparent"
+                        }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <div className="relative mb-2">
+                          <item.icon className="h-6 w-6" />
+                          {item.badge && (
+                            <Badge 
+                              variant="destructive" 
+                              className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px] font-bold"
+                            >
+                              {item.badge.replace(/\D/g, '')}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-center text-xs font-medium">{item.title}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Sidebar Navigation in Mobile Menu */}
+              {sidebarNavigation.map((group) => (
+                <div key={group.title} className="space-y-2">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    {group.title}
+                  </h3>
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const isActive = pathname === item.url
+                      return (
+                        <Link
+                          key={item.title}
+                          href={item.url}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                            isActive
+                              ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
+                              : "hover:bg-gray-50"
+                          }`}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <item.icon className={`h-4 w-4 ${isActive ? "text-blue-600" : ""}`} />
+                          <span className="flex-1">{item.title}</span>
+                          {item.badge && (
+                            <Badge variant={isActive ? "default" : "secondary"} className="text-xs">
+                              {item.badge}
+                            </Badge>
+                          )}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Sidebar className="border-r">
         <SidebarHeader>
           <div className="flex items-center gap-2 px-2 py-2">
@@ -195,7 +296,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
 
         <SidebarContent>
-          {navigation.map((group) => (
+          {sidebarNavigation.map((group) => (
             <SidebarGroup key={group.title}>
               <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {group.title}
@@ -328,13 +429,65 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
-        <SidebarRail />
       </Sidebar>
 
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-white/80 backdrop-blur-sm">
-          <SidebarTrigger className="-ml-1" />
-          <div className="flex-1" />
+        <header className="flex h-16 shrink-0 items-center gap-4 border-b px-4 bg-white/80 backdrop-blur-sm dark:bg-zinc-950/80">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          
+          {/* LinkedIn-style Search Bar */}
+          <div className="flex-1 max-w-md mx-auto">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search internships, companies, or skills..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 focus:bg-white dark:focus:bg-zinc-950"
+              />
+            </div>
+          </div>
+
+          {/* LinkedIn-style Top Navigation Bar */}
+          <div className="hidden lg:flex items-center space-x-1">
+            {topNavigation.map((item) => {
+              const isActive = pathname === item.url
+              return (
+                <Link
+                  key={item.title}
+                  href={item.url}
+                  className={`flex flex-col items-center justify-center px-3 py-2 min-w-[80px] text-xs font-medium transition-colors relative group ${
+                    isActive
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                  }`}
+                >
+                  <div className="relative">
+                    <item.icon className="h-5 w-5 mb-1" />
+                    {item.badge && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px] font-bold"
+                      >
+                        {item.badge.replace(/\D/g, '')}
+                      </Badge>
+                    )}
+                  </div>
+                  <span className="text-center leading-tight">{item.title}</span>
+                  {isActive && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"></div>
+                  )}
+                </Link>
+              )
+            })}
+          </div>
 
           {/* Header Actions */}
           <div className="flex items-center gap-2">
@@ -360,7 +513,35 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </header>
-        <main className="flex-1 p-6 bg-gray-50/50">{children}</main>
+        <div className="flex flex-1">
+          <main className="flex-1 p-4 sm:p-6 bg-gray-50/50 dark:bg-zinc-900/50">
+            {children}
+          </main>
+          <aside className="hidden xl:block w-80 border-l p-6">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Suggested for you</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Connect with professionals in your field.
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Courses</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Enhance your skills with these recommended courses.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </aside>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

@@ -20,6 +20,50 @@ export interface UserProfile {
   updated_at: string
 }
 
+export async function signInWithGoogle(): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('Starting Google sign-in process...')
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    })
+
+    if (error) {
+      console.error('Google sign-in error:', error)
+      return { success: false, error: error.message }
+    }
+
+    console.log('Google sign-in initiated successfully:', data)
+    return { success: true }
+  } catch (error) {
+    console.error('Google sign-in error:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+export async function signOut(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.auth.signOut()
+    
+    if (error) {
+      console.error('Sign-out error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Sign-out error:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
 export async function getCurrentUser(): Promise<UserProfile | null> {
   try {
     const {

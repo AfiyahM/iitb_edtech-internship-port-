@@ -15,7 +15,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
 import { updateUserProfile, uploadAvatar } from "@/lib/auth"
-import { GraduationCap, Target, Camera, Save, Plus, X, Github, Linkedin, Loader2, Edit, BookOpen } from "lucide-react"
+import { 
+  GraduationCap, 
+  Target, 
+  Camera, 
+  Save, 
+  Plus, 
+  X, 
+  Github, 
+  Linkedin, 
+  Loader2, 
+  Edit, 
+  BookOpen,
+  MapPin,
+  Building,
+  Calendar,
+  Users,
+  Eye,
+  Share2,
+  MoreHorizontal
+} from "lucide-react"
 
 export default function ProfilePage() {
   const { user, loading, refreshUser } = useUser()
@@ -159,175 +178,137 @@ export default function ProfilePage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Profile</h1>
-            <p className="text-muted-foreground">Manage your account settings and preferences</p>
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+        {/* Hero Section */}
+        <Card className="overflow-hidden">
+          <div className="h-32 sm:h-48 bg-gradient-to-r from-blue-50 to-purple-50 relative">
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/10" />
           </div>
-          <div className="flex gap-2">
-            {isEditing ? (
-              <>
-                <Button variant="outline" onClick={() => setIsEditing(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-              </>
-            ) : (
-              <Button onClick={() => setIsEditing(true)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Profile
-              </Button>
-            )}
-          </div>
-        </div>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="flex flex-col sm:flex-row sm:items-end -mt-16 gap-4">
+              <div className="relative">
+                <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-card shadow-lg">
+                  <AvatarImage src={user.avatar_url || "/placeholder.svg"} />
+                  <AvatarFallback className="text-xl sm:text-3xl">
+                    {user.first_name?.[0]}
+                    {user.last_name?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                {isEditing && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="absolute bottom-2 right-2 rounded-full p-2 bg-white shadow-md"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingAvatar}
+                  >
+                    {isUploadingAvatar ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl sm:text-2xl font-bold">
+                  {user.first_name} {user.last_name}
+                </h2>
+                <p className="text-muted-foreground text-sm sm:text-base flex items-center gap-1">
+                  <Building className="h-4 w-4" />
+                  {formData.major} at {formData.university}
+                </p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  {formData.location}
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="secondary" className="text-xs">
+                    <Eye className="h-3 w-3 mr-1" />
+                    245 profile views
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    <Users className="h-3 w-3 mr-1" />
+                    156 connections
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {isEditing ? (
+                  <>
+                    <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+                    <Button onClick={handleSave} disabled={isSaving}>
+                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" size="sm">
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Share
+                    </Button>
+                    <Button onClick={() => setIsEditing(true)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <Tabs defaultValue="personal" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="personal">Personal Info</TabsTrigger>
-            <TabsTrigger value="education">Education</TabsTrigger>
-            <TabsTrigger value="skills">Skills & Goals</TabsTrigger>
-            <TabsTrigger value="social">Social Links</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="personal" className="space-y-6">
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Left Column - Main Content */}
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Profile Picture</CardTitle>
-                <CardDescription>Update your profile picture</CardDescription>
+                <CardTitle>About</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-6">
-                  <div className="relative">
-                    <Avatar className="h-24 w-24">
-                      <AvatarImage src={user.avatar_url || "/placeholder.svg"} />
-                      <AvatarFallback className="text-lg">
-                        {user.first_name?.[0]}
-                        {user.last_name?.[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="absolute -bottom-2 -right-2 rounded-full p-2 bg-transparent"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploadingAvatar}
-                    >
-                      {isUploadingAvatar ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Camera className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleAvatarUpload}
-                    />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">
-                      {user.first_name} {user.last_name}
-                    </h3>
-                    <p className="text-muted-foreground">{user.email}</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Member since {new Date(user.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
+                <Textarea
+                  value={formData.bio}
+                  onChange={(e) => handleInputChange("bio", e.target.value)}
+                  disabled={!isEditing}
+                  placeholder="Tell us about yourself..."
+                  rows={4}
+                  className="resize-none"
+                />
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
-                <CardDescription>Your basic personal details</CardDescription>
+                <CardTitle>Experience</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      value={formData.first_name}
-                      onChange={(e) => handleInputChange("first_name", e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      value={formData.last_name}
-                      onChange={(e) => handleInputChange("last_name", e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" value={formData.email} disabled />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      value={formData.location}
-                      onChange={(e) => handleInputChange("location", e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    value={formData.bio}
-                    onChange={(e) => handleInputChange("bio", e.target.value)}
-                    disabled={!isEditing}
-                    placeholder="Tell us about yourself..."
-                    rows={4}
-                  />
+              <CardContent>
+                <div className="text-center py-8">
+                  <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Add your work experience and internships here.
+                  </p>
+                  <Button variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Experience
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          <TabsContent value="education" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <GraduationCap className="h-5 w-5" />
-                  Education Details
+                  Education
                 </CardTitle>
-                <CardDescription>Your academic background and achievements</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -337,10 +318,11 @@ export default function ProfilePage() {
                     value={formData.university}
                     onChange={(e) => handleInputChange("university", e.target.value)}
                     disabled={!isEditing}
+                    placeholder="Enter your university"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="major">Major</Label>
                     <Input
@@ -348,6 +330,7 @@ export default function ProfilePage() {
                       value={formData.major}
                       onChange={(e) => handleInputChange("major", e.target.value)}
                       disabled={!isEditing}
+                      placeholder="Enter your major"
                     />
                   </div>
                   <div>
@@ -357,40 +340,22 @@ export default function ProfilePage() {
                       value={formData.graduation_year}
                       onChange={(e) => handleInputChange("graduation_year", e.target.value)}
                       disabled={!isEditing}
+                      placeholder="2024"
                     />
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
 
-          <TabsContent value="skills" className="space-y-6">
+          {/* Right Column - Sidebar */}
+          <div className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5" />
-                  Career Goal
-                </CardTitle>
-                <CardDescription>Your career aspirations and objectives</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={formData.career_goal}
-                  onChange={(e) => handleInputChange("career_goal", e.target.value)}
-                  disabled={!isEditing}
-                  placeholder="Describe your career goals and aspirations..."
-                  rows={4}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
                   Skills
                 </CardTitle>
-                <CardDescription>Your technical and soft skills</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-2">
@@ -426,13 +391,10 @@ export default function ProfilePage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
 
-          <TabsContent value="social" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Social Links</CardTitle>
-                <CardDescription>Connect your professional profiles</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -464,8 +426,30 @@ export default function ProfilePage() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>People you may know</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback>JD</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">John Doe</p>
+                      <p className="text-xs text-muted-foreground truncate">Software Engineer at Tech Corp</p>
+                    </div>
+                    <Button size="sm" variant="outline">
+                      Connect
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   )
