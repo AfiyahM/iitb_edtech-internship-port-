@@ -1,5 +1,24 @@
--- Create users table
-CREATE TABLE IF NOT EXISTS users (
+-- Database Fix Script
+-- This script will fix the "column user_id does not exist" error
+
+-- First, let's check if tables exist and drop them if they have wrong schema
+DO $$ 
+BEGIN
+    -- Drop tables if they exist (this will recreate them with correct schema)
+    DROP TABLE IF EXISTS notifications CASCADE;
+    DROP TABLE IF EXISTS user_skills CASCADE;
+    DROP TABLE IF EXISTS learning_progress CASCADE;
+    DROP TABLE IF EXISTS mock_interviews CASCADE;
+    DROP TABLE IF EXISTS resumes CASCADE;
+    DROP TABLE IF EXISTS applications CASCADE;
+    DROP TABLE IF EXISTS internships CASCADE;
+    DROP TABLE IF EXISTS users CASCADE;
+    
+    RAISE NOTICE 'Dropped existing tables to recreate with correct schema';
+END $$;
+
+-- Create users table with all required fields
+CREATE TABLE users (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
   first_name VARCHAR(100) NOT NULL,
@@ -20,7 +39,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Create internships table
-CREATE TABLE IF NOT EXISTS internships (
+CREATE TABLE internships (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title VARCHAR(200) NOT NULL,
   company VARCHAR(200) NOT NULL,
@@ -37,7 +56,7 @@ CREATE TABLE IF NOT EXISTS internships (
 );
 
 -- Create applications table
-CREATE TABLE IF NOT EXISTS applications (
+CREATE TABLE applications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   internship_id UUID REFERENCES internships(id) ON DELETE CASCADE,
@@ -48,7 +67,7 @@ CREATE TABLE IF NOT EXISTS applications (
 );
 
 -- Create resumes table
-CREATE TABLE IF NOT EXISTS resumes (
+CREATE TABLE resumes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   content JSONB NOT NULL,
@@ -59,7 +78,7 @@ CREATE TABLE IF NOT EXISTS resumes (
 );
 
 -- Create mock_interviews table
-CREATE TABLE IF NOT EXISTS mock_interviews (
+CREATE TABLE mock_interviews (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   type VARCHAR(20) NOT NULL, -- technical, behavioral, system_design
@@ -73,7 +92,7 @@ CREATE TABLE IF NOT EXISTS mock_interviews (
 );
 
 -- Create learning_progress table
-CREATE TABLE IF NOT EXISTS learning_progress (
+CREATE TABLE learning_progress (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   learning_path VARCHAR(100) NOT NULL,
@@ -85,7 +104,7 @@ CREATE TABLE IF NOT EXISTS learning_progress (
 );
 
 -- Create user_skills table
-CREATE TABLE IF NOT EXISTS user_skills (
+CREATE TABLE user_skills (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   skill_name VARCHAR(100) NOT NULL,
@@ -95,7 +114,7 @@ CREATE TABLE IF NOT EXISTS user_skills (
 );
 
 -- Create notifications table
-CREATE TABLE IF NOT EXISTS notifications (
+CREATE TABLE notifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   title VARCHAR(200) NOT NULL,
@@ -106,14 +125,14 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_applications_user_id ON applications(user_id);
-CREATE INDEX IF NOT EXISTS idx_applications_internship_id ON applications(internship_id);
-CREATE INDEX IF NOT EXISTS idx_resumes_user_id ON resumes(user_id);
-CREATE INDEX IF NOT EXISTS idx_mock_interviews_user_id ON mock_interviews(user_id);
-CREATE INDEX IF NOT EXISTS idx_learning_progress_user_id ON learning_progress(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_skills_user_id ON user_skills(user_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_internships_skills ON internships USING GIN(skills);
+CREATE INDEX idx_applications_user_id ON applications(user_id);
+CREATE INDEX idx_applications_internship_id ON applications(internship_id);
+CREATE INDEX idx_resumes_user_id ON resumes(user_id);
+CREATE INDEX idx_mock_interviews_user_id ON mock_interviews(user_id);
+CREATE INDEX idx_learning_progress_user_id ON learning_progress(user_id);
+CREATE INDEX idx_user_skills_user_id ON user_skills(user_id);
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_internships_skills ON internships USING GIN(skills);
 
 -- Enable Row Level Security
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -123,6 +142,35 @@ ALTER TABLE mock_interviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE learning_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_skills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view own profile" ON users;
+DROP POLICY IF EXISTS "Users can insert own profile" ON users;
+DROP POLICY IF EXISTS "Users can update own profile" ON users;
+
+DROP POLICY IF EXISTS "Users can view own applications" ON applications;
+DROP POLICY IF EXISTS "Users can insert own applications" ON applications;
+DROP POLICY IF EXISTS "Users can update own applications" ON applications;
+
+DROP POLICY IF EXISTS "Users can view own resumes" ON resumes;
+DROP POLICY IF EXISTS "Users can insert own resumes" ON resumes;
+DROP POLICY IF EXISTS "Users can update own resumes" ON resumes;
+
+DROP POLICY IF EXISTS "Users can view own interviews" ON mock_interviews;
+DROP POLICY IF EXISTS "Users can insert own interviews" ON mock_interviews;
+DROP POLICY IF EXISTS "Users can update own interviews" ON mock_interviews;
+
+DROP POLICY IF EXISTS "Users can view own progress" ON learning_progress;
+DROP POLICY IF EXISTS "Users can insert own progress" ON learning_progress;
+DROP POLICY IF EXISTS "Users can update own progress" ON learning_progress;
+
+DROP POLICY IF EXISTS "Users can view own skills" ON user_skills;
+DROP POLICY IF EXISTS "Users can insert own skills" ON user_skills;
+DROP POLICY IF EXISTS "Users can update own skills" ON user_skills;
+
+DROP POLICY IF EXISTS "Users can view own notifications" ON notifications;
+DROP POLICY IF EXISTS "Users can insert own notifications" ON notifications;
+DROP POLICY IF EXISTS "Users can update own notifications" ON notifications;
 
 -- RLS Policies for users table
 CREATE POLICY "Users can view own profile" ON users
@@ -196,4 +244,4 @@ CREATE POLICY "Users can update own notifications" ON notifications
 
 -- Allow public read access to internships (no RLS needed for public data)
 -- ALTER TABLE internships ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY "Anyone can view internships" ON internships FOR SELECT USING (true);
+-- CREATE POLICY "Anyone can view internships" ON internships FOR SELECT USING (true); 

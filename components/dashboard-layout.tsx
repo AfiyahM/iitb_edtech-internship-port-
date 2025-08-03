@@ -55,10 +55,11 @@ import {
   X,
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
+import { signOut } from "@/lib/auth"
 
 const topNavigation = [
   { title: "Dashboard", url: "/dashboard", icon: Home, badge: null },
@@ -95,6 +96,7 @@ interface UserStats {
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { theme, setTheme } = useTheme()
   const { toast } = useToast()
   const { user, loading } = useUser()
@@ -124,12 +126,32 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const handleLogout = () => {
-    toast({
-      title: "Logged out successfully",
-      description: "You have been signed out of your account.",
-    })
-    // Add logout logic here
+  const handleLogout = async () => {
+    try {
+      const result = await signOut()
+      
+      if (result.success) {
+        toast({
+          title: "Logged out successfully",
+          description: "You have been signed out of your account.",
+        })
+        // Navigate to home page
+        router.push("/")
+      } else {
+        toast({
+          title: "Logout failed",
+          description: result.error || "Failed to sign out. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+      toast({
+        title: "Logout failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const toggleTheme = () => {
