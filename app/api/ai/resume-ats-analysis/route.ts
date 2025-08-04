@@ -17,9 +17,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       atsScore: analysis.atsScore,
+      breakdown: analysis.breakdown,
       feedback: analysis.feedback,
       suggestions: analysis.suggestions,
       optimizationTips: analysis.optimizationTips,
+      strengths: analysis.strengths,
+      areasForImprovement: analysis.areasForImprovement,
     })
   } catch (error) {
     console.error('Resume ATS analysis error:', error)
