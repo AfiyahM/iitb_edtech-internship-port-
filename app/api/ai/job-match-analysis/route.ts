@@ -17,9 +17,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       matchScore: analysis.matchScore,
+      breakdown: analysis.breakdown,
       missingSkills: analysis.missingSkills,
       recommendations: analysis.recommendations,
       optimizationSuggestions: analysis.optimizationSuggestions,
+      strengths: analysis.strengths,
+      areasForImprovement: analysis.areasForImprovement,
     })
   } catch (error) {
     console.error('Job match analysis error:', error)

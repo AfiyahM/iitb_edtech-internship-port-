@@ -222,9 +222,35 @@ export function AIChatWidget() {
       // Store ATS score in context
       setConversationContext(prev => ({ ...prev, atsScore: atsData.atsScore }))
 
+      // Create detailed ATS breakdown message
+      const breakdownText = Object.entries(atsData.breakdown)
+        .map(([category, data]: [string, any]) => {
+          const categoryName = category.charAt(0).toUpperCase() + category.slice(1)
+          return `${categoryName}: ${data.score}/${data.maxScore} - ${data.feedback}`
+        })
+        .join('\n')
+
       const assistantMessage: ChatMessage = {
         role: 'assistant',
-        content: `I've analyzed your resume. ATS Score: ${atsData.atsScore}/100. ${atsData.feedback} Key suggestions: ${atsData.suggestions.slice(0, 2).join(', ')}. Are you applying for a specific job?`,
+        content: `I've analyzed your resume for Software Engineer role compatibility.
+
+ATS Score: ${atsData.atsScore}/100
+
+Detailed Breakdown:
+${breakdownText}
+
+Overall Feedback: ${atsData.feedback}
+
+Key Strengths:
+${atsData.strengths.map((s: string) => `${s}`).join('\n')}
+
+Areas for Improvement:
+${atsData.areasForImprovement.map((a: string) => `${a}`).join('\n')}
+
+Top Suggestions:
+${atsData.suggestions.slice(0, 3).map((s: string) => `${s}`).join('\n')}
+
+Are you applying for a specific job? I can help optimize your resume for that role.`,
         timestamp: new Date()
       }
 
@@ -232,7 +258,7 @@ export function AIChatWidget() {
 
       toast({
         title: "Resume analyzed!",
-        description: `ATS Score: ${atsData.atsScore}/100`,
+        description: `ATS Score: ${atsData.atsScore}/100 - ${atsData.feedback.split('.')[0]}`,
       })
     } catch (error) {
       console.error('Error uploading file:', error)
