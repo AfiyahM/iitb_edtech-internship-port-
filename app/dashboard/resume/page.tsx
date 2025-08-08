@@ -27,6 +27,7 @@ import {
   Upload,
   File,
   X,
+  XCircle,
 } from "lucide-react"
 
 interface Experience {
@@ -76,6 +77,8 @@ interface AnalysisResult {
   contentScore: number
   skillsScore: number
   formatScore: number
+  educationScore?: number
+  experienceScore?: number
   suggestions: Array<{
     type: "success" | "warning" | "info"
     title: string
@@ -95,6 +98,7 @@ export default function ResumePage() {
   const [extractedText, setExtractedText] = useState("")
   const [isExtracting, setIsExtracting] = useState(false)
   const [enhancedResume, setEnhancedResume] = useState("")
+  const [showEnhancedResume, setShowEnhancedResume] = useState(false)
 
   const [suggestions, setSuggestions] = useState([
     {
@@ -199,37 +203,20 @@ export default function ResumePage() {
     setIsExtracting(true)
 
     try {
-      // Simulate text extraction (in real app, use PDF.js or similar)
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Real text extraction via API
+      const form = new FormData()
+      form.append('resume', file)
+      const extractRes = await fetch('/api/resume/extract', { method: 'POST', body: form })
+      const extractData = await extractRes.json()
+      if (!extractRes.ok) {
+        throw new Error(extractData.error || 'Failed to extract text')
+      }
 
-      const mockExtractedText = `
-        ${user?.first_name} ${user?.last_name}
-        ${user?.email} | ${user?.phone}
-        ${user?.location}
+      if (!extractData.text || extractData.text.length < 50) {
+        throw new Error('Extracted text is too short or empty. Please try a different file.')
+      }
 
-        EDUCATION
-        ${user?.university}
-        ${user?.major}, Expected ${user?.graduation_year}
-
-        EXPERIENCE
-        Software Development Intern - TechCorp
-        Jun 2023 - Aug 2023
-        • Developed web applications using React and Node.js
-        • Improved user engagement by 25%
-        • Collaborated with cross-functional teams
-
-        SKILLS
-        Programming: JavaScript, Python, Java, TypeScript
-        Frameworks: React, Node.js, Express, Next.js
-        Tools: Git, Docker, AWS, MongoDB
-
-        PROJECTS
-        E-commerce Platform
-        • Built full-stack application with React and Node.js
-        • Implemented user authentication and payment processing
-      `
-
-      setExtractedText(mockExtractedText)
+      setExtractedText(extractData.text)
 
       toast({
         title: "Resume uploaded!",
@@ -285,6 +272,8 @@ export default function ResumePage() {
         contentScore: analysis.breakdown?.experience?.score ? Math.round((analysis.breakdown.experience.score / analysis.breakdown.experience.maxScore) * 100) : 75,
         skillsScore: analysis.breakdown?.skills?.score ? Math.round((analysis.breakdown.skills.score / analysis.breakdown.skills.maxScore) * 100) : 80,
         formatScore: analysis.breakdown?.education?.score ? Math.round((analysis.breakdown.education.score / analysis.breakdown.education.maxScore) * 100) : 90,
+        educationScore: analysis.breakdown?.education?.score ? Math.round((analysis.breakdown.education.score / analysis.breakdown.education.maxScore) * 100) : 0,
+        experienceScore: analysis.breakdown?.experience?.score ? Math.round((analysis.breakdown.experience.score / analysis.breakdown.experience.maxScore) * 100) : 0,
         suggestions: [
           ...(analysis.suggestions?.map((s: string) => ({
             type: "info" as const,
@@ -454,10 +443,17 @@ export default function ResumePage() {
         contentScore: analysis.breakdown?.experience?.score ? Math.round((analysis.breakdown.experience.score / analysis.breakdown.experience.maxScore) * 100) : 75,
         skillsScore: analysis.breakdown?.skills?.score ? Math.round((analysis.breakdown.skills.score / analysis.breakdown.skills.maxScore) * 100) : 80,
         formatScore: analysis.breakdown?.education?.score ? Math.round((analysis.breakdown.education.score / analysis.breakdown.education.maxScore) * 100) : 90,
+        educationScore: analysis.breakdown?.education?.score ? Math.round((analysis.breakdown.education.score / analysis.breakdown.education.maxScore) * 100) : 0,
+        experienceScore: analysis.breakdown?.experience?.score ? Math.round((analysis.breakdown.experience.score / analysis.breakdown.experience.maxScore) * 100) : 0,
         suggestions: [
+          ...(analysis.professionalRecommendations?.map((rec: string) => ({
+            type: "info" as const,
+            title: "Professional Recommendation",
+            description: rec,
+          })) || []),
           ...(analysis.suggestions?.map((s: string) => ({
             type: "info" as const,
-            title: "AI Suggestion",
+            title: "Suggestion",
             description: s,
           })) || []),
           ...(analysis.optimizationTips?.map((tip: string) => ({
@@ -474,6 +470,16 @@ export default function ResumePage() {
             type: "warning" as const,
             title: "Area for Improvement",
             description: area,
+          })) || []),
+          ...(analysis.quantifiableExamples?.map((example: string) => ({
+            type: "info" as const,
+            title: "Quantifiable Example",
+            description: example,
+          })) || []),
+          ...(analysis.skillGaps?.map((gap: string) => ({
+            type: "warning" as const,
+            title: "Skill Gap",
+            description: gap,
           })) || []),
         ],
       }
@@ -520,7 +526,7 @@ export default function ResumePage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-full overflow-x-hidden">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Resume Builder</h1>
@@ -632,22 +638,22 @@ export default function ResumePage() {
                       <CardDescription>Detailed breakdown of your resume performance</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center p-3 bg-blue-50 rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">{analysisResult.atsScore}%</div>
-                          <div className="text-sm text-muted-foreground">ATS Score</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+                        <div className="text-center p-2 md:p-3 bg-blue-50 rounded-lg">
+                          <div className="text-lg md:text-2xl font-bold text-blue-600">{analysisResult.atsScore}%</div>
+                          <div className="text-xs md:text-sm text-muted-foreground">ATS Score</div>
                         </div>
-                        <div className="text-center p-3 bg-green-50 rounded-lg">
-                          <div className="text-2xl font-bold text-green-600">{analysisResult.contentScore}%</div>
-                          <div className="text-sm text-muted-foreground">Content</div>
+                        <div className="text-center p-2 md:p-3 bg-green-50 rounded-lg">
+                          <div className="text-lg md:text-2xl font-bold text-green-600">{analysisResult.contentScore}%</div>
+                          <div className="text-xs md:text-sm text-muted-foreground">Content</div>
                         </div>
-                        <div className="text-center p-3 bg-purple-50 rounded-lg">
-                          <div className="text-2xl font-bold text-purple-600">{analysisResult.skillsScore}%</div>
-                          <div className="text-sm text-muted-foreground">Skills Match</div>
+                        <div className="text-center p-2 md:p-3 bg-purple-50 rounded-lg">
+                          <div className="text-lg md:text-2xl font-bold text-purple-600">{analysisResult.skillsScore}%</div>
+                          <div className="text-xs md:text-sm text-muted-foreground">Skills Match</div>
                         </div>
-                        <div className="text-center p-3 bg-orange-50 rounded-lg">
-                          <div className="text-2xl font-bold text-orange-600">{analysisResult.formatScore}%</div>
-                          <div className="text-sm text-muted-foreground">Format</div>
+                        <div className="text-center p-2 md:p-3 bg-orange-50 rounded-lg">
+                          <div className="text-lg md:text-2xl font-bold text-orange-600">{analysisResult.formatScore}%</div>
+                          <div className="text-xs md:text-sm text-muted-foreground">Format</div>
                         </div>
                       </div>
                     </CardContent>
@@ -785,10 +791,17 @@ export default function ResumePage() {
                       contentScore: analysis.breakdown?.experience?.score ? Math.round((analysis.breakdown.experience.score / analysis.breakdown.experience.maxScore) * 100) : 75,
                       skillsScore: analysis.breakdown?.skills?.score ? Math.round((analysis.breakdown.skills.score / analysis.breakdown.skills.maxScore) * 100) : 80,
                       formatScore: analysis.breakdown?.education?.score ? Math.round((analysis.breakdown.education.score / analysis.breakdown.education.maxScore) * 100) : 90,
+                      educationScore: analysis.breakdown?.education?.score ? Math.round((analysis.breakdown.education.score / analysis.breakdown.education.maxScore) * 100) : 0,
+                      experienceScore: analysis.breakdown?.experience?.score ? Math.round((analysis.breakdown.experience.score / analysis.breakdown.experience.maxScore) * 100) : 0,
                       suggestions: [
+                        ...(analysis.professionalRecommendations?.map((rec: string) => ({
+                          type: "info" as const,
+                          title: "Professional Recommendation",
+                          description: rec,
+                        })) || []),
                         ...(analysis.suggestions?.map((s: string) => ({
                           type: "info" as const,
-                          title: "AI Suggestion",
+                          title: "Suggestion",
                           description: s,
                         })) || []),
                         ...(analysis.optimizationTips?.map((tip: string) => ({
@@ -805,6 +818,16 @@ export default function ResumePage() {
                           type: "warning" as const,
                           title: "Area for Improvement",
                           description: area,
+                        })) || []),
+                        ...(analysis.quantifiableExamples?.map((example: string) => ({
+                          type: "info" as const,
+                          title: "Quantifiable Example",
+                          description: example,
+                        })) || []),
+                        ...(analysis.skillGaps?.map((gap: string) => ({
+                          type: "warning" as const,
+                          title: "Skill Gap",
+                          description: gap,
                         })) || []),
                       ],
                     };
@@ -879,52 +902,77 @@ export default function ResumePage() {
 
                 {analysisResult && (
                   <div className="mt-6 space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center p-3 bg-blue-50 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">{analysisResult.atsScore}%</div>
-                        <div className="text-sm text-muted-foreground">ATS Score</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+                      <div className="text-center p-2 md:p-3 bg-blue-50 rounded-lg">
+                        <div className="text-lg md:text-2xl font-bold text-blue-600">{analysisResult.atsScore}%</div>
+                        <div className="text-xs md:text-sm text-muted-foreground">ATS Score</div>
                       </div>
-                      <div className="text-center p-3 bg-green-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">{analysisResult.contentScore}%</div>
-                        <div className="text-sm text-muted-foreground">Content</div>
+                      <div className="text-center p-2 md:p-3 bg-green-50 rounded-lg">
+                        <div className="text-lg md:text-2xl font-bold text-green-600">{analysisResult.contentScore}%</div>
+                        <div className="text-xs md:text-sm text-muted-foreground">Content</div>
                       </div>
-                      <div className="text-center p-3 bg-purple-50 rounded-lg">
-                        <div className="text-2xl font-bold text-purple-600">{analysisResult.skillsScore}%</div>
-                        <div className="text-sm text-muted-foreground">Skills Match</div>
+                      <div className="text-center p-2 md:p-3 bg-purple-50 rounded-lg">
+                        <div className="text-lg md:text-2xl font-bold text-purple-600">{analysisResult.skillsScore}%</div>
+                        <div className="text-xs md:text-sm text-muted-foreground">Skills Match</div>
                       </div>
-                      <div className="text-center p-3 bg-orange-50 rounded-lg">
-                        <div className="text-2xl font-bold text-orange-600">{analysisResult.formatScore}%</div>
-                        <div className="text-sm text-muted-foreground">Format</div>
+                      <div className="text-center p-2 md:p-3 bg-orange-50 rounded-lg">
+                        <div className="text-lg md:text-2xl font-bold text-orange-600">{analysisResult.formatScore}%</div>
+                        <div className="text-xs md:text-sm text-muted-foreground">Format</div>
                       </div>
                     </div>
 
-                                         <div className="space-y-3">
-                       <h4 className="font-medium">AI Suggestions:</h4>
-                       {suggestions.map((suggestion, index) => (
-                         <div
-                           key={index}
-                           className={`border-l-4 pl-4 ${
-                             suggestion.type === "success"
-                               ? "border-green-500"
-                               : suggestion.type === "warning"
-                                 ? "border-yellow-500"
-                                 : "border-blue-500"
-                           }`}
-                         >
-                           <h5 className="font-medium text-sm">{suggestion.title}</h5>
-                           <p className="text-xs text-muted-foreground mt-1">{suggestion.description}</p>
-                         </div>
-                       ))}
-                     </div>
+                                                                    <div className="space-y-3">
+                             <h4 className="font-medium">AI Suggestions:</h4>
+                             <div className="max-w-full overflow-x-auto">
+                               {suggestions.map((suggestion, index) => (
+                                 <div
+                                   key={index}
+                                   className={`border-l-4 pl-4 mb-3 ${
+                                     suggestion.type === "success"
+                                       ? "border-green-500"
+                                       : suggestion.type === "warning"
+                                         ? "border-yellow-500"
+                                         : "border-blue-500"
+                                   }`}
+                                 >
+                                   <h5 className="font-medium text-sm break-words">{suggestion.title}</h5>
+                                   <p className="text-xs text-muted-foreground mt-1 break-words">{suggestion.description}</p>
+                                 </div>
+                               ))}
+                             </div>
+                           </div>
 
-                     {enhancedResume && (
-                       <div className="space-y-3">
-                         <h4 className="font-medium">Enhanced Resume:</h4>
-                         <div className="bg-gray-50 p-4 rounded-lg">
-                           <pre className="text-sm whitespace-pre-wrap font-mono">{enhancedResume}</pre>
-                         </div>
-                       </div>
-                     )}
+                                                <div className="space-y-3">
+                             <Button 
+                               onClick={() => setShowEnhancedResume(!showEnhancedResume)} 
+                               variant="outline" 
+                               className="w-full"
+                               disabled={!enhancedResume}
+                             >
+                               {showEnhancedResume ? (
+                                 <>
+                                   <Eye className="h-4 w-4 mr-2" />
+                                   Hide Enhanced Resume
+                                 </>
+                               ) : (
+                                 <>
+                                   <Sparkles className="h-4 w-4 mr-2" />
+                                   Show Enhanced Resume
+                                 </>
+                               )}
+                             </Button>
+                             
+                             {showEnhancedResume && enhancedResume && (
+                               <div className="space-y-3">
+                                 <h4 className="font-medium">Enhanced Resume:</h4>
+                                 <div className="bg-gray-50 p-4 rounded-lg max-w-full overflow-x-auto">
+                                   <div className="text-sm whitespace-pre-wrap font-mono break-words">
+                                     {enhancedResume}
+                                   </div>
+                                 </div>
+                               </div>
+                             )}
+                           </div>
                   </div>
                 )}
               </CardContent>
@@ -1264,65 +1312,115 @@ export default function ResumePage() {
 
               {/* AI Analysis & Score */}
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-yellow-500" />
-                      AI Resume Score
-                    </CardTitle>
-                    <CardDescription>Real-time analysis of your resume strength</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center mb-4">
-                      <div className="text-3xl font-bold text-blue-600">{resumeScore}/100</div>
-                      <p className="text-sm text-muted-foreground">Overall Score</p>
-                    </div>
-                    <Progress value={resumeScore} className="mb-4" />
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">ATS Compatibility</span>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">{analysisResult?.atsScore || 85}%</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Content Quality</span>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">{analysisResult?.contentScore || 75}%</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Skills Match</span>
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-yellow-500" />
-                          <span className="text-sm">{analysisResult?.skillsScore || 80}%</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Format & Structure</span>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">{analysisResult?.formatScore || 90}%</span>
-                        </div>
-                      </div>
-                    </div>
-                    <Button onClick={analyzeBuiltResume} className="w-full mt-4" disabled={isAnalyzing}>
-                      {isAnalyzing ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Analyze with AI
-                        </>
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
+                                     <Card>
+                       <CardHeader>
+                         <CardTitle className="flex items-center gap-2">
+                           <Sparkles className="h-5 w-5 text-yellow-500" />
+                           AI Resume Score
+                         </CardTitle>
+                         <CardDescription>Real-time analysis of your resume strength</CardDescription>
+                       </CardHeader>
+                       <CardContent>
+                         <div className="text-center mb-4">
+                           <div className="text-3xl font-bold text-blue-600">{resumeScore}/100</div>
+                           <p className="text-sm text-muted-foreground">Overall Score</p>
+                         </div>
+                         <Progress value={resumeScore} className="mb-4" />
+                         <div className="space-y-3">
+                           <div className="flex items-center justify-between">
+                             <span className="text-sm">ATS Compatibility</span>
+                             <div className="flex items-center gap-2">
+                               {analysisResult?.atsScore && analysisResult.atsScore >= 70 ? (
+                                 <CheckCircle className="h-4 w-4 text-green-500" />
+                               ) : analysisResult?.atsScore && analysisResult.atsScore >= 50 ? (
+                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
+                               ) : (
+                                 <XCircle className="h-4 w-4 text-red-500" />
+                               )}
+                               <span className="text-sm">{analysisResult?.atsScore || 0}%</span>
+                             </div>
+                           </div>
+                           <div className="flex items-center justify-between">
+                             <span className="text-sm">Content Quality</span>
+                             <div className="flex items-center gap-2">
+                               {analysisResult?.contentScore && analysisResult.contentScore >= 70 ? (
+                                 <CheckCircle className="h-4 w-4 text-green-500" />
+                               ) : analysisResult?.contentScore && analysisResult.contentScore >= 50 ? (
+                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
+                               ) : (
+                                 <XCircle className="h-4 w-4 text-red-500" />
+                               )}
+                               <span className="text-sm">{analysisResult?.contentScore || 0}%</span>
+                             </div>
+                           </div>
+                           <div className="flex items-center justify-between">
+                             <span className="text-sm">Skills Match</span>
+                             <div className="flex items-center gap-2">
+                               {analysisResult?.skillsScore && analysisResult.skillsScore >= 70 ? (
+                                 <CheckCircle className="h-4 w-4 text-green-500" />
+                               ) : analysisResult?.skillsScore && analysisResult.skillsScore >= 50 ? (
+                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
+                               ) : (
+                                 <XCircle className="h-4 w-4 text-red-500" />
+                               )}
+                               <span className="text-sm">{analysisResult?.skillsScore || 0}%</span>
+                             </div>
+                           </div>
+                           <div className="flex items-center justify-between">
+                             <span className="text-sm">Format & Structure</span>
+                             <div className="flex items-center gap-2">
+                               {analysisResult?.formatScore && analysisResult.formatScore >= 70 ? (
+                                 <CheckCircle className="h-4 w-4 text-green-500" />
+                               ) : analysisResult?.formatScore && analysisResult.formatScore >= 50 ? (
+                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
+                               ) : (
+                                 <XCircle className="h-4 w-4 text-red-500" />
+                               )}
+                               <span className="text-sm">{analysisResult?.formatScore || 0}%</span>
+                             </div>
+                           </div>
+                           <div className="flex items-center justify-between">
+                             <span className="text-sm">Education</span>
+                             <div className="flex items-center gap-2">
+                               {analysisResult?.educationScore && analysisResult.educationScore >= 70 ? (
+                                 <CheckCircle className="h-4 w-4 text-green-500" />
+                               ) : analysisResult?.educationScore && analysisResult.educationScore >= 50 ? (
+                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
+                               ) : (
+                                 <XCircle className="h-4 w-4 text-red-500" />
+                               )}
+                               <span className="text-sm">{analysisResult?.educationScore || 0}%</span>
+                             </div>
+                           </div>
+                           <div className="flex items-center justify-between">
+                             <span className="text-sm">Experience</span>
+                             <div className="flex items-center gap-2">
+                               {analysisResult?.experienceScore && analysisResult.experienceScore >= 70 ? (
+                                 <CheckCircle className="h-4 w-4 text-green-500" />
+                               ) : analysisResult?.experienceScore && analysisResult.experienceScore >= 50 ? (
+                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
+                               ) : (
+                                 <XCircle className="h-4 w-4 text-red-500" />
+                               )}
+                               <span className="text-sm">{analysisResult?.experienceScore || 0}%</span>
+                             </div>
+                           </div>
+                         </div>
+                         <Button onClick={analyzeBuiltResume} className="w-full mt-4" disabled={isAnalyzing}>
+                           {isAnalyzing ? (
+                             <>
+                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                               Analyzing...
+                             </>
+                           ) : (
+                             <>
+                               <Sparkles className="h-4 w-4 mr-2" />
+                               Analyze with AI
+                             </>
+                           )}
+                         </Button>
+                       </CardContent>
+                     </Card>
 
                 <Card>
                   <CardHeader>
