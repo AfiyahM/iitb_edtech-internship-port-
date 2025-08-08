@@ -94,6 +94,7 @@ export default function ResumePage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [extractedText, setExtractedText] = useState("")
   const [isExtracting, setIsExtracting] = useState(false)
+  const [enhancedResume, setEnhancedResume] = useState("")
 
   const [suggestions, setSuggestions] = useState([
     {
@@ -257,13 +258,13 @@ export default function ResumePage() {
 
     setIsAnalyzing(true)
     try {
-      const response = await fetch('/api/ai/resume-analysis', {
+      const response = await fetch('/api/resume/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          resumeText: extractedText,
+          resumeContent: extractedText,
           targetRole: "Software Engineering Intern"
         }),
       })
@@ -274,27 +275,37 @@ export default function ResumePage() {
         throw new Error(data.error || 'Failed to analyze resume')
       }
 
-      // Parse the AI response to extract structured data
-      const analysisText = data.analysis
+      // Use the comprehensive analysis data from the enhanced API
+      const analysis = data.analysis
       
-      // Create a structured result based on the AI analysis
+      // Create a structured result with real analysis data
       const result: AnalysisResult = {
-        overallScore: 78, // Default score
-        atsScore: 85,
-        contentScore: 75,
-        skillsScore: 80,
-        formatScore: 90,
+        overallScore: analysis.atsScore || 78,
+        atsScore: analysis.atsScore || 85,
+        contentScore: analysis.breakdown?.experience?.score ? Math.round((analysis.breakdown.experience.score / analysis.breakdown.experience.maxScore) * 100) : 75,
+        skillsScore: analysis.breakdown?.skills?.score ? Math.round((analysis.breakdown.skills.score / analysis.breakdown.skills.maxScore) * 100) : 80,
+        formatScore: analysis.breakdown?.education?.score ? Math.round((analysis.breakdown.education.score / analysis.breakdown.education.maxScore) * 100) : 90,
         suggestions: [
-          {
+          ...(analysis.suggestions?.map((s: string) => ({
             type: "info" as const,
-            title: "AI Analysis Complete",
-            description: analysisText.substring(0, 200) + "...",
-          },
-          {
+            title: "AI Suggestion",
+            description: s,
+          })) || []),
+          ...(analysis.optimizationTips?.map((tip: string) => ({
             type: "warning" as const,
-            title: "Review Recommendations",
-            description: "Please review the detailed analysis above for specific improvement suggestions.",
-          },
+            title: "Optimization Tip",
+            description: tip,
+          })) || []),
+          ...(analysis.strengths?.map((strength: string) => ({
+            type: "success" as const,
+            title: "Strength",
+            description: strength,
+          })) || []),
+          ...(analysis.areasForImprovement?.map((area: string) => ({
+            type: "warning" as const,
+            title: "Area for Improvement",
+            description: area,
+          })) || []),
         ],
       }
 
@@ -304,7 +315,7 @@ export default function ResumePage() {
 
       toast({
         title: "Resume analyzed!",
-        description: "Your resume has been analyzed with AI-powered insights.",
+        description: `ATS Score: ${analysis.atsScore}/100 - ${analysis.feedback?.split('.')[0] || 'Analysis complete'}`,
       })
     } catch (error) {
       console.error('Resume analysis error:', error)
@@ -416,13 +427,13 @@ export default function ResumePage() {
         `).join('\n')}
       `
 
-      const response = await fetch('/api/ai/resume-analysis', {
+      const response = await fetch('/api/resume/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          resumeText: resumeText,
+          resumeContent: resumeText,
           targetRole: "Software Engineering Intern"
         }),
       })
@@ -433,27 +444,37 @@ export default function ResumePage() {
         throw new Error(data.error || 'Failed to analyze resume')
       }
 
-      // Parse the AI response to extract structured data
-      const analysisText = data.analysis
+      // Use the comprehensive analysis data from the enhanced API
+      const analysis = data.analysis
       
-      // Create a structured result based on the AI analysis
+      // Create a structured result with real analysis data (BUILDER)
       const result: AnalysisResult = {
-        overallScore: 78, // Default score
-        atsScore: 85,
-        contentScore: 75,
-        skillsScore: 80,
-        formatScore: 90,
+        overallScore: analysis.atsScore || 78,
+        atsScore: analysis.atsScore || 85,
+        contentScore: analysis.breakdown?.experience?.score ? Math.round((analysis.breakdown.experience.score / analysis.breakdown.experience.maxScore) * 100) : 75,
+        skillsScore: analysis.breakdown?.skills?.score ? Math.round((analysis.breakdown.skills.score / analysis.breakdown.skills.maxScore) * 100) : 80,
+        formatScore: analysis.breakdown?.education?.score ? Math.round((analysis.breakdown.education.score / analysis.breakdown.education.maxScore) * 100) : 90,
         suggestions: [
-          {
+          ...(analysis.suggestions?.map((s: string) => ({
             type: "info" as const,
-            title: "AI Analysis Complete",
-            description: analysisText.substring(0, 200) + "...",
-          },
-          {
+            title: "AI Suggestion",
+            description: s,
+          })) || []),
+          ...(analysis.optimizationTips?.map((tip: string) => ({
             type: "warning" as const,
-            title: "Review Recommendations",
-            description: "Please review the detailed analysis above for specific improvement suggestions.",
-          },
+            title: "Optimization Tip",
+            description: tip,
+          })) || []),
+          ...(analysis.strengths?.map((strength: string) => ({
+            type: "success" as const,
+            title: "Strength",
+            description: strength,
+          })) || []),
+          ...(analysis.areasForImprovement?.map((area: string) => ({
+            type: "warning" as const,
+            title: "Area for Improvement",
+            description: area,
+          })) || []),
         ],
       }
 
@@ -463,7 +484,7 @@ export default function ResumePage() {
 
       toast({
         title: "Resume analyzed!",
-        description: "Your resume has been analyzed with AI-powered insights.",
+        description: `ATS Score: ${analysis.atsScore}/100 - ${analysis.feedback?.split('.')[0] || 'Analysis complete'}`,
       })
     } catch (error) {
       console.error('Resume analysis error:', error)
@@ -520,6 +541,7 @@ export default function ResumePage() {
         <Tabs defaultValue="upload" className="space-y-6">
           <TabsList>
             <TabsTrigger value="upload">Upload & Analyze</TabsTrigger>
+            <TabsTrigger value="simple">Simple Analysis</TabsTrigger>
             <TabsTrigger value="builder">Resume Builder</TabsTrigger>
           </TabsList>
 
@@ -710,6 +732,203 @@ export default function ResumePage() {
                 </Card>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="simple" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Simple Resume Analysis</CardTitle>
+                <CardDescription>Quick analysis of your resume with AI-powered feedback</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const file = formData.get('resume') as File;
+                  const targetRole = formData.get('targetRole') as string;
+
+                  if (!file) {
+                    toast({
+                      title: "No file selected",
+                      description: "Please select a resume file to analyze.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+
+                  setIsAnalyzing(true);
+                  try {
+                    // Create FormData for file upload
+                    const uploadFormData = new FormData();
+                    uploadFormData.append('resume', file);
+                    if (targetRole) {
+                      uploadFormData.append('targetRole', targetRole);
+                    }
+
+                    const response = await fetch("/api/resume/analyze", {
+                      method: "POST",
+                      body: uploadFormData,
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                      throw new Error(data.error || 'Failed to analyze resume');
+                    }
+
+                    const analysis = data.analysis;
+                    
+                    // Create a structured result with real analysis data
+                    const result: AnalysisResult = {
+                      overallScore: analysis.atsScore || 78,
+                      atsScore: analysis.atsScore || 85,
+                      contentScore: analysis.breakdown?.experience?.score ? Math.round((analysis.breakdown.experience.score / analysis.breakdown.experience.maxScore) * 100) : 75,
+                      skillsScore: analysis.breakdown?.skills?.score ? Math.round((analysis.breakdown.skills.score / analysis.breakdown.skills.maxScore) * 100) : 80,
+                      formatScore: analysis.breakdown?.education?.score ? Math.round((analysis.breakdown.education.score / analysis.breakdown.education.maxScore) * 100) : 90,
+                      suggestions: [
+                        ...(analysis.suggestions?.map((s: string) => ({
+                          type: "info" as const,
+                          title: "AI Suggestion",
+                          description: s,
+                        })) || []),
+                        ...(analysis.optimizationTips?.map((tip: string) => ({
+                          type: "warning" as const,
+                          title: "Optimization Tip",
+                          description: tip,
+                        })) || []),
+                        ...(analysis.strengths?.map((strength: string) => ({
+                          type: "success" as const,
+                          title: "Strength",
+                          description: strength,
+                        })) || []),
+                        ...(analysis.areasForImprovement?.map((area: string) => ({
+                          type: "warning" as const,
+                          title: "Area for Improvement",
+                          description: area,
+                        })) || []),
+                      ],
+                    };
+
+                    // Store enhanced resume if available
+                    if (analysis.enhancedResume) {
+                      setEnhancedResume(analysis.enhancedResume);
+                    }
+
+                    setAnalysisResult(result);
+                    setResumeScore(result.overallScore);
+                    setSuggestions(result.suggestions);
+
+                    toast({
+                      title: "Resume analyzed!",
+                      description: `ATS Score: ${analysis.atsScore}/100 - ${analysis.feedback?.split('.')[0] || 'Analysis complete'}`,
+                    });
+                  } catch (error) {
+                    console.error('Resume analysis error:', error);
+                    toast({
+                      title: "Analysis failed",
+                      description: "Unable to analyze resume. Please try again.",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsAnalyzing(false);
+                  }
+                }} className="space-y-4">
+                  <div>
+                    <Label htmlFor="resume">Resume File</Label>
+                    <Input
+                      id="resume"
+                      name="resume"
+                      type="file"
+                      accept=".pdf,.docx,.doc,.txt"
+                      required
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Supports PDF, DOC, DOCX, and TXT files
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="targetRole">Target Role (Optional)</Label>
+                    <Input
+                      id="targetRole"
+                      name="targetRole"
+                      type="text"
+                      placeholder="e.g., Software Engineering Intern, Data Analyst"
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Specify target role for job-specific optimization
+                    </p>
+                  </div>
+
+                  <Button type="submit" disabled={isAnalyzing} className="w-full">
+                    {isAnalyzing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Analyzing Resume...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Analyze Resume
+                      </>
+                    )}
+                  </Button>
+                </form>
+
+                {analysisResult && (
+                  <div className="mt-6 space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600">{analysisResult.atsScore}%</div>
+                        <div className="text-sm text-muted-foreground">ATS Score</div>
+                      </div>
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">{analysisResult.contentScore}%</div>
+                        <div className="text-sm text-muted-foreground">Content</div>
+                      </div>
+                      <div className="text-center p-3 bg-purple-50 rounded-lg">
+                        <div className="text-2xl font-bold text-purple-600">{analysisResult.skillsScore}%</div>
+                        <div className="text-sm text-muted-foreground">Skills Match</div>
+                      </div>
+                      <div className="text-center p-3 bg-orange-50 rounded-lg">
+                        <div className="text-2xl font-bold text-orange-600">{analysisResult.formatScore}%</div>
+                        <div className="text-sm text-muted-foreground">Format</div>
+                      </div>
+                    </div>
+
+                                         <div className="space-y-3">
+                       <h4 className="font-medium">AI Suggestions:</h4>
+                       {suggestions.map((suggestion, index) => (
+                         <div
+                           key={index}
+                           className={`border-l-4 pl-4 ${
+                             suggestion.type === "success"
+                               ? "border-green-500"
+                               : suggestion.type === "warning"
+                                 ? "border-yellow-500"
+                                 : "border-blue-500"
+                           }`}
+                         >
+                           <h5 className="font-medium text-sm">{suggestion.title}</h5>
+                           <p className="text-xs text-muted-foreground mt-1">{suggestion.description}</p>
+                         </div>
+                       ))}
+                     </div>
+
+                     {enhancedResume && (
+                       <div className="space-y-3">
+                         <h4 className="font-medium">Enhanced Resume:</h4>
+                         <div className="bg-gray-50 p-4 rounded-lg">
+                           <pre className="text-sm whitespace-pre-wrap font-mono">{enhancedResume}</pre>
+                         </div>
+                       </div>
+                     )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="builder" className="space-y-6">
@@ -1064,28 +1283,28 @@ export default function ResumePage() {
                         <span className="text-sm">ATS Compatibility</span>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">95%</span>
+                          <span className="text-sm">{analysisResult?.atsScore || 85}%</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Content Quality</span>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">88%</span>
+                          <span className="text-sm">{analysisResult?.contentScore || 75}%</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Skills Match</span>
                         <div className="flex items-center gap-2">
                           <AlertCircle className="h-4 w-4 text-yellow-500" />
-                          <span className="text-sm">72%</span>
+                          <span className="text-sm">{analysisResult?.skillsScore || 80}%</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Format & Structure</span>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">91%</span>
+                          <span className="text-sm">{analysisResult?.formatScore || 90}%</span>
                         </div>
                       </div>
                     </div>
