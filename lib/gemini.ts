@@ -604,6 +604,27 @@ Provide the most critical skills that would make the biggest impact for this pos
       }
     }
   }
+
+  async enhanceResume(resumeText: string): Promise<string> {
+    try {
+      const prompt = `Enhance this resume by improving clarity, adding action verbs, quantifying achievements where possible, and making it more ATS-friendly. Keep the same structure but improve the content quality.
+
+IMPORTANT: Return only the enhanced resume text without any markdown formatting, bullet points, or special symbols. Use plain text only.
+
+Resume: ${resumeText}
+
+Provide the enhanced version of this resume.`
+
+      const result = await this.model.generateContent(prompt)
+      const response = await result.response
+      const text = response.text()
+
+      return text
+    } catch (error) {
+      console.error('Error enhancing resume:', error)
+      return resumeText // Return original if enhancement fails
+    }
+  }
 }
 
 // Create a singleton instance
