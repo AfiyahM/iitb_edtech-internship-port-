@@ -48,15 +48,13 @@ import {
   Award,
   Calendar,
   HelpCircle,
-  Moon,
-  Sun,
   Zap,
   Menu,
   X,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
+
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
 import { signOut } from "@/lib/auth"
@@ -97,7 +95,7 @@ interface UserStats {
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { theme, setTheme } = useTheme()
+
   const { toast } = useToast()
   const { user, loading } = useUser()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -154,9 +152,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
-  }
+
 
   const clearNotifications = () => {
     setNotifications(0)
@@ -176,7 +172,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="fixed inset-0 bg-black/50" onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="fixed left-0 top-0 h-full w-80 bg-white dark:bg-zinc-950 border-r">
+          <div className="fixed left-0 top-0 h-full w-80 bg-white border-r">
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center gap-2">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 text-white text-lg font-bold">
@@ -437,10 +433,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       Settings
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={toggleTheme}>
-                    {theme === "dark" ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
-                    {theme === "dark" ? "Light Mode" : "Dark Mode"}
-                  </DropdownMenuItem>
+
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-red-600">
                     <LogOut className="h-4 w-4 mr-2" />
@@ -454,7 +447,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       </Sidebar>
 
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-4 border-b px-4 bg-white/80 backdrop-blur-sm dark:bg-zinc-950/80">
+        <header className="flex h-16 shrink-0 items-center gap-4 border-b px-4 bg-white/80 backdrop-blur-sm">
           <Button
             variant="ghost"
             size="icon"
@@ -472,7 +465,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 placeholder="Search internships, companies, or skills..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 focus:bg-white dark:focus:bg-zinc-950"
+                className="pl-10 bg-gray-50 border-gray-200 focus:bg-white"
               />
             </div>
           </div>
@@ -488,7 +481,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   className={`flex flex-col items-center justify-center px-3 py-2 min-w-[80px] text-xs font-medium transition-colors relative group ${
                     isActive
                       ? "text-blue-600 border-b-2 border-blue-600"
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                      : "text-gray-600 hover:text-gray-900"
                   }`}
                 >
                   <div className="relative">
