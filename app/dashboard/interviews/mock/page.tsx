@@ -58,8 +58,8 @@ export default function MockInterviewPage() {
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [audioEnabled, setAudioEnabled] = useState(true)
 
-  const timerRef = useRef<NodeJS.Timeout>()
-  const mediaRecorderRef = useRef<MediaRecorder>()
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
 
   const interviewConfig = {
