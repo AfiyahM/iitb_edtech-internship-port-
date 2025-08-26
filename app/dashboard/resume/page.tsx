@@ -70,6 +70,7 @@ interface ResumeData {
     description: string
   }>
 }
+import DocxPreview from "@/components/DocxPreview"
 
 interface AnalysisResult {
   overallScore: number
@@ -96,6 +97,7 @@ export default function ResumePage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [extractedText, setExtractedText] = useState("")
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null)
   const [isExtracting, setIsExtracting] = useState(false)
   const [enhancedResume, setEnhancedResume] = useState("")
   const [showEnhancedResume, setShowEnhancedResume] = useState(false)
@@ -200,6 +202,7 @@ export default function ResumePage() {
     }
 
     setUploadedFile(file)
+    setFilePreviewUrl(URL.createObjectURL(file))
     setIsExtracting(true)
 
     try {
@@ -597,20 +600,39 @@ export default function ResumePage() {
                           </Button>
                         </div>
 
-                        {isExtracting && (
-                          <div className="mt-4 flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="text-sm">Extracting text...</span>
-                          </div>
-                        )}
+                      {isExtracting && (
+                        <div className="mt-4 flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm">Extracting text...</span>
+                        </div>
+                      )}
 
-                        {extractedText && (
-                          <div className="mt-4">
-                            <Label>Extracted Text Preview:</Label>
-                            <Textarea value={extractedText} readOnly rows={8} className="mt-2 text-sm" />
-                          </div>
-                        )}
-                      </div>
+                      {uploadedFile && filePreviewUrl && (
+                        <div className="mt-4">
+                          <Label>Resume Preview:</Label>
+
+                          {uploadedFile.type.includes("pdf") ? (
+                            // PDF preview
+                            <iframe
+                              src={filePreviewUrl}
+                              className="w-full h-[600px] border mt-2 rounded"
+                            />
+                          ) : uploadedFile.type.includes("wordprocessingml") ? (
+                            // DOCX preview
+                            <DocxPreview file={uploadedFile} />
+                          ) : (
+                            // fallback to plain text
+                            <Textarea
+                              value={extractedText}
+                              readOnly
+                              rows={8}
+                              className="mt-2 text-sm"
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     )}
 
                     {extractedText && (
