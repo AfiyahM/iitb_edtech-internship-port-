@@ -101,7 +101,8 @@ export default function ResumePage() {
   const [isExtracting, setIsExtracting] = useState(false)
   const [enhancedResume, setEnhancedResume] = useState("")
   const [showEnhancedResume, setShowEnhancedResume] = useState(false)
-
+  const [generatedResume, setGeneratedResume] = useState<string | null>(null)
+  const [previewContent, setPreviewContent] = useState<string>("")
   const [suggestions, setSuggestions] = useState([
     {
       type: "info" as const,
@@ -133,33 +134,32 @@ export default function ResumePage() {
     experiences: [
       {
         id: 1,
-        title: "Software Development Intern",
-        company: "TechCorp",
-        duration: "Jun 2023 - Aug 2023",
-        description: "Developed web applications using React and Node.js, improving user engagement by 25%",
+        title: "",
+        company: "",
+        duration: "",
+        description: "",
       },
     ],
     education: {
       university: "",
-      degree: "Bachelor of Science",
+      degree: "",
       major: "",
       gpa: "",
       graduation: "",
       coursework: "",
     },
     skills: {
-      programming: ["JavaScript", "Python", "Java", "TypeScript", "C++"],
-      frameworks: ["React", "Node.js", "Express", "Next.js", "Django"],
-      tools: ["Git", "Docker", "AWS", "MongoDB", "PostgreSQL"],
+      programming: [],
+      frameworks: [],
+      tools: [],
     },
     projects: [
       {
         id: 1,
-        name: "E-commerce Platform",
-        technologies: "React, Node.js, MongoDB",
-        link: "github.com/user/ecommerce",
-        description:
-          "Built a full-stack e-commerce platform with user authentication, payment processing, and inventory management.",
+        name: "",
+        technologies: "",
+        link: "",
+        description: "",
       },
     ],
   })
@@ -267,7 +267,7 @@ export default function ResumePage() {
 
       // Use the comprehensive analysis data from the enhanced API
       const analysis = data.analysis
-      
+
       // Create a structured result with real analysis data
       const result: AnalysisResult = {
         overallScore: analysis.atsScore || 78,
@@ -438,7 +438,7 @@ export default function ResumePage() {
 
       // Use the comprehensive analysis data from the enhanced API
       const analysis = data.analysis
-      
+
       // Create a structured result with real analysis data (BUILDER)
       const result: AnalysisResult = {
         overallScore: analysis.atsScore || 78,
@@ -600,38 +600,38 @@ export default function ResumePage() {
                           </Button>
                         </div>
 
-                      {isExtracting && (
-                        <div className="mt-4 flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="text-sm">Extracting text...</span>
-                        </div>
-                      )}
+                        {isExtracting && (
+                          <div className="mt-4 flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span className="text-sm">Extracting text...</span>
+                          </div>
+                        )}
 
-                      {uploadedFile && filePreviewUrl && (
-                        <div className="mt-4">
-                          <Label>Resume Preview:</Label>
+                        {uploadedFile && filePreviewUrl && (
+                          <div className="mt-4">
+                            <Label>Resume Preview:</Label>
 
-                          {uploadedFile.type.includes("pdf") ? (
-                            // PDF preview
-                            <iframe
-                              src={filePreviewUrl}
-                              className="w-full h-[600px] border mt-2 rounded"
-                            />
-                          ) : uploadedFile.type.includes("wordprocessingml") ? (
-                            // DOCX preview
-                            <DocxPreview file={uploadedFile} />
-                          ) : (
-                            // fallback to plain text
-                            <Textarea
-                              value={extractedText}
-                              readOnly
-                              rows={8}
-                              className="mt-2 text-sm"
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
+                            {uploadedFile.type.includes("pdf") ? (
+                              // PDF preview
+                              <iframe
+                                src={filePreviewUrl}
+                                className="w-full h-[600px] border mt-2 rounded"
+                              />
+                            ) : uploadedFile.type.includes("wordprocessingml") ? (
+                              // DOCX preview
+                              <DocxPreview file={uploadedFile} />
+                            ) : (
+                              // fallback to plain text
+                              <Textarea
+                                value={extractedText}
+                                readOnly
+                                rows={8}
+                                className="mt-2 text-sm"
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
 
                     )}
 
@@ -744,13 +744,12 @@ export default function ResumePage() {
                     {suggestions.map((suggestion, index) => (
                       <div
                         key={index}
-                        className={`border-l-4 pl-4 ${
-                          suggestion.type === "success"
+                        className={`border-l-4 pl-4 ${suggestion.type === "success"
                             ? "border-green-500"
                             : suggestion.type === "warning"
                               ? "border-yellow-500"
                               : "border-blue-500"
-                        }`}
+                          }`}
                       >
                         <h4 className="font-medium text-sm">{suggestion.title}</h4>
                         <p className="text-xs text-muted-foreground mt-1">{suggestion.description}</p>
@@ -805,7 +804,7 @@ export default function ResumePage() {
                     }
 
                     const analysis = data.analysis;
-                    
+
                     // Create a structured result with real analysis data
                     const result: AnalysisResult = {
                       overallScore: analysis.atsScore || 78,
@@ -892,7 +891,7 @@ export default function ResumePage() {
                       Supports PDF, DOC, DOCX, and TXT files
                     </p>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="targetRole">Target Role (Optional)</Label>
                     <Input
@@ -943,58 +942,57 @@ export default function ResumePage() {
                       </div>
                     </div>
 
-                                                                    <div className="space-y-3">
-                             <h4 className="font-medium">AI Suggestions:</h4>
-                             <div className="max-w-full overflow-x-auto">
-                               {suggestions.map((suggestion, index) => (
-                                 <div
-                                   key={index}
-                                   className={`border-l-4 pl-4 mb-3 ${
-                                     suggestion.type === "success"
-                                       ? "border-green-500"
-                                       : suggestion.type === "warning"
-                                         ? "border-yellow-500"
-                                         : "border-blue-500"
-                                   }`}
-                                 >
-                                   <h5 className="font-medium text-sm break-words">{suggestion.title}</h5>
-                                   <p className="text-xs text-muted-foreground mt-1 break-words">{suggestion.description}</p>
-                                 </div>
-                               ))}
-                             </div>
-                           </div>
+                    <div className="space-y-3">
+                      <h4 className="font-medium">AI Suggestions:</h4>
+                      <div className="max-w-full overflow-x-auto">
+                        {suggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            className={`border-l-4 pl-4 mb-3 ${suggestion.type === "success"
+                                ? "border-green-500"
+                                : suggestion.type === "warning"
+                                  ? "border-yellow-500"
+                                  : "border-blue-500"
+                              }`}
+                          >
+                            <h5 className="font-medium text-sm break-words">{suggestion.title}</h5>
+                            <p className="text-xs text-muted-foreground mt-1 break-words">{suggestion.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
-                                                <div className="space-y-3">
-                             <Button 
-                               onClick={() => setShowEnhancedResume(!showEnhancedResume)} 
-                               variant="outline" 
-                               className="w-full"
-                               disabled={!enhancedResume}
-                             >
-                               {showEnhancedResume ? (
-                                 <>
-                                   <Eye className="h-4 w-4 mr-2" />
-                                   Hide Enhanced Resume
-                                 </>
-                               ) : (
-                                 <>
-                                   <Sparkles className="h-4 w-4 mr-2" />
-                                   Show Enhanced Resume
-                                 </>
-                               )}
-                             </Button>
-                             
-                             {showEnhancedResume && enhancedResume && (
-                               <div className="space-y-3">
-                                 <h4 className="font-medium">Enhanced Resume:</h4>
-                                 <div className="bg-gray-50 p-4 rounded-lg max-w-full overflow-x-auto">
-                                   <div className="text-sm whitespace-pre-wrap font-mono break-words">
-                                     {enhancedResume}
-                                   </div>
-                                 </div>
-                               </div>
-                             )}
-                           </div>
+                    <div className="space-y-3">
+                      <Button
+                        onClick={() => setShowEnhancedResume(!showEnhancedResume)}
+                        variant="outline"
+                        className="w-full"
+                        disabled={!enhancedResume}
+                      >
+                        {showEnhancedResume ? (
+                          <>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Hide Enhanced Resume
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Show Enhanced Resume
+                          </>
+                        )}
+                      </Button>
+
+                      {showEnhancedResume && enhancedResume && (
+                        <div className="space-y-3">
+                          <h4 className="font-medium">Enhanced Resume:</h4>
+                          <div className="bg-gray-50 p-4 rounded-lg max-w-full overflow-x-auto">
+                            <div className="text-sm whitespace-pre-wrap font-mono break-words">
+                              {enhancedResume}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -1326,7 +1324,43 @@ export default function ResumePage() {
                           <Plus className="h-4 w-4 mr-2" />
                           Add Project
                         </Button>
+
+                        <Button
+                          className="mt-4 w-full"
+                          onClick={async () => {
+                            const resumePayload = {
+                              personal: resumeData.personal,
+                              experiences: resumeData.experiences,
+                              education: resumeData.education,
+                              skills: resumeData.skills,
+                              projects: resumeData.projects,
+                            }
+
+                            try {
+                              const res = await fetch("/api/resume/generate", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(resumePayload),
+                              })
+                              const data = await res.json()
+
+                              if (data.success) {
+                                setGeneratedResume(data.resume)
+                                toast({ title: "Resume generated successfully!" })
+                              } else {
+                                toast({ title: "Error", description: data.error, variant: "destructive" })
+                              }
+                            } catch (err) {
+                              console.error(err)
+                              toast({ title: "Error", description: "Failed to generate resume", variant: "destructive" })
+                            }
+                          }}
+                        >
+                          Generate Resume
+                        </Button>
+
                       </CardContent>
+
                     </Card>
                   </TabsContent>
                 </Tabs>
@@ -1334,115 +1368,115 @@ export default function ResumePage() {
 
               {/* AI Analysis & Score */}
               <div className="space-y-6">
-                                     <Card>
-                       <CardHeader>
-                         <CardTitle className="flex items-center gap-2">
-                           <Sparkles className="h-5 w-5 text-yellow-500" />
-                           AI Resume Score
-                         </CardTitle>
-                         <CardDescription>Real-time analysis of your resume strength</CardDescription>
-                       </CardHeader>
-                       <CardContent>
-                         <div className="text-center mb-4">
-                           <div className="text-3xl font-bold text-blue-600">{resumeScore}/100</div>
-                           <p className="text-sm text-muted-foreground">Overall Score</p>
-                         </div>
-                         <Progress value={resumeScore} className="mb-4" />
-                         <div className="space-y-3">
-                           <div className="flex items-center justify-between">
-                             <span className="text-sm">ATS Compatibility</span>
-                             <div className="flex items-center gap-2">
-                               {analysisResult?.atsScore && analysisResult.atsScore >= 70 ? (
-                                 <CheckCircle className="h-4 w-4 text-green-500" />
-                               ) : analysisResult?.atsScore && analysisResult.atsScore >= 50 ? (
-                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
-                               ) : (
-                                 <XCircle className="h-4 w-4 text-red-500" />
-                               )}
-                               <span className="text-sm">{analysisResult?.atsScore || 0}%</span>
-                             </div>
-                           </div>
-                           <div className="flex items-center justify-between">
-                             <span className="text-sm">Content Quality</span>
-                             <div className="flex items-center gap-2">
-                               {analysisResult?.contentScore && analysisResult.contentScore >= 70 ? (
-                                 <CheckCircle className="h-4 w-4 text-green-500" />
-                               ) : analysisResult?.contentScore && analysisResult.contentScore >= 50 ? (
-                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
-                               ) : (
-                                 <XCircle className="h-4 w-4 text-red-500" />
-                               )}
-                               <span className="text-sm">{analysisResult?.contentScore || 0}%</span>
-                             </div>
-                           </div>
-                           <div className="flex items-center justify-between">
-                             <span className="text-sm">Skills Match</span>
-                             <div className="flex items-center gap-2">
-                               {analysisResult?.skillsScore && analysisResult.skillsScore >= 70 ? (
-                                 <CheckCircle className="h-4 w-4 text-green-500" />
-                               ) : analysisResult?.skillsScore && analysisResult.skillsScore >= 50 ? (
-                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
-                               ) : (
-                                 <XCircle className="h-4 w-4 text-red-500" />
-                               )}
-                               <span className="text-sm">{analysisResult?.skillsScore || 0}%</span>
-                             </div>
-                           </div>
-                           <div className="flex items-center justify-between">
-                             <span className="text-sm">Format & Structure</span>
-                             <div className="flex items-center gap-2">
-                               {analysisResult?.formatScore && analysisResult.formatScore >= 70 ? (
-                                 <CheckCircle className="h-4 w-4 text-green-500" />
-                               ) : analysisResult?.formatScore && analysisResult.formatScore >= 50 ? (
-                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
-                               ) : (
-                                 <XCircle className="h-4 w-4 text-red-500" />
-                               )}
-                               <span className="text-sm">{analysisResult?.formatScore || 0}%</span>
-                             </div>
-                           </div>
-                           <div className="flex items-center justify-between">
-                             <span className="text-sm">Education</span>
-                             <div className="flex items-center gap-2">
-                               {analysisResult?.educationScore && analysisResult.educationScore >= 70 ? (
-                                 <CheckCircle className="h-4 w-4 text-green-500" />
-                               ) : analysisResult?.educationScore && analysisResult.educationScore >= 50 ? (
-                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
-                               ) : (
-                                 <XCircle className="h-4 w-4 text-red-500" />
-                               )}
-                               <span className="text-sm">{analysisResult?.educationScore || 0}%</span>
-                             </div>
-                           </div>
-                           <div className="flex items-center justify-between">
-                             <span className="text-sm">Experience</span>
-                             <div className="flex items-center gap-2">
-                               {analysisResult?.experienceScore && analysisResult.experienceScore >= 70 ? (
-                                 <CheckCircle className="h-4 w-4 text-green-500" />
-                               ) : analysisResult?.experienceScore && analysisResult.experienceScore >= 50 ? (
-                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
-                               ) : (
-                                 <XCircle className="h-4 w-4 text-red-500" />
-                               )}
-                               <span className="text-sm">{analysisResult?.experienceScore || 0}%</span>
-                             </div>
-                           </div>
-                         </div>
-                         <Button onClick={analyzeBuiltResume} className="w-full mt-4" disabled={isAnalyzing}>
-                           {isAnalyzing ? (
-                             <>
-                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                               Analyzing...
-                             </>
-                           ) : (
-                             <>
-                               <Sparkles className="h-4 w-4 mr-2" />
-                               Analyze with AI
-                             </>
-                           )}
-                         </Button>
-                       </CardContent>
-                     </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-yellow-500" />
+                      AI Resume Score
+                    </CardTitle>
+                    <CardDescription>Real-time analysis of your resume strength</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center mb-4">
+                      <div className="text-3xl font-bold text-blue-600">{resumeScore}/100</div>
+                      <p className="text-sm text-muted-foreground">Overall Score</p>
+                    </div>
+                    <Progress value={resumeScore} className="mb-4" />
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">ATS Compatibility</span>
+                        <div className="flex items-center gap-2">
+                          {analysisResult?.atsScore && analysisResult.atsScore >= 70 ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : analysisResult?.atsScore && analysisResult.atsScore >= 50 ? (
+                            <AlertCircle className="h-4 w-4 text-yellow-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="text-sm">{analysisResult?.atsScore || 0}%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Content Quality</span>
+                        <div className="flex items-center gap-2">
+                          {analysisResult?.contentScore && analysisResult.contentScore >= 70 ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : analysisResult?.contentScore && analysisResult.contentScore >= 50 ? (
+                            <AlertCircle className="h-4 w-4 text-yellow-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="text-sm">{analysisResult?.contentScore || 0}%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Skills Match</span>
+                        <div className="flex items-center gap-2">
+                          {analysisResult?.skillsScore && analysisResult.skillsScore >= 70 ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : analysisResult?.skillsScore && analysisResult.skillsScore >= 50 ? (
+                            <AlertCircle className="h-4 w-4 text-yellow-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="text-sm">{analysisResult?.skillsScore || 0}%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Format & Structure</span>
+                        <div className="flex items-center gap-2">
+                          {analysisResult?.formatScore && analysisResult.formatScore >= 70 ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : analysisResult?.formatScore && analysisResult.formatScore >= 50 ? (
+                            <AlertCircle className="h-4 w-4 text-yellow-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="text-sm">{analysisResult?.formatScore || 0}%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Education</span>
+                        <div className="flex items-center gap-2">
+                          {analysisResult?.educationScore && analysisResult.educationScore >= 70 ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : analysisResult?.educationScore && analysisResult.educationScore >= 50 ? (
+                            <AlertCircle className="h-4 w-4 text-yellow-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="text-sm">{analysisResult?.educationScore || 0}%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Experience</span>
+                        <div className="flex items-center gap-2">
+                          {analysisResult?.experienceScore && analysisResult.experienceScore >= 70 ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : analysisResult?.experienceScore && analysisResult.experienceScore >= 50 ? (
+                            <AlertCircle className="h-4 w-4 text-yellow-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="text-sm">{analysisResult?.experienceScore || 0}%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Button onClick={analyzeBuiltResume} className="w-full mt-4" disabled={isAnalyzing}>
+                      {isAnalyzing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Analyze with AI
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
 
                 <Card>
                   <CardHeader>
@@ -1453,13 +1487,12 @@ export default function ResumePage() {
                     {suggestions.map((suggestion, index) => (
                       <div
                         key={index}
-                        className={`border-l-4 pl-4 ${
-                          suggestion.type === "success"
+                        className={`border-l-4 pl-4 ${suggestion.type === "success"
                             ? "border-green-500"
                             : suggestion.type === "warning"
                               ? "border-yellow-500"
                               : "border-blue-500"
-                        }`}
+                          }`}
                       >
                         <h4 className="font-medium text-sm">{suggestion.title}</h4>
                         <p className="text-xs text-muted-foreground mt-1">{suggestion.description}</p>
