@@ -102,7 +102,9 @@ export default function ResumePage() {
   const [enhancedResume, setEnhancedResume] = useState("")
   const [showEnhancedResume, setShowEnhancedResume] = useState(false)
   const [generatedResume, setGeneratedResume] = useState<string | null>(null)
+  const [generatedResumeText, setGeneratedResumeText] = useState<string | null>(null)
   const [previewContent, setPreviewContent] = useState<string>("")
+  const [isGenerating, setIsGenerating] = useState(false)
   const [suggestions, setSuggestions] = useState([
     {
       type: "info" as const,
@@ -507,19 +509,87 @@ export default function ResumePage() {
     }
   }
 
-  const downloadResume = () => {
-    toast({
-      title: "Resume downloaded!",
-      description: "Your resume has been downloaded as a PDF.",
-    })
+  const downloadResume = async () => {
+  if (!generatedResume) {
+    toast({ title: "No resume to download", description: "Generate a resume first.", variant: "destructive" })
+    return
   }
 
-  const previewResume = () => {
-    toast({
-      title: "Resume preview",
-      description: "Opening resume preview in a new window.",
-    })
+  try {
+    // UMD lib: require or dynamic import is fine
+    const html2pdf: any = require("html2pdf.js")
+
+    // Parse the full HTML you generated on the server
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(generatedResume, "text/html")
+
+    // Build a hidden container in THIS document so styles apply
+    const container = document.createElement("div")
+    container.style.position = "fixed"
+    container.style.left = "-99999px"
+    container.style.top = "0"
+    container.style.width = "816px" // ~ 8.5in @ 96dpi if you want consistent layout
+
+    // copy <style> from the generated <head> into the container so html2pdf sees it
+    const styleText = doc.head?.querySelector("style")?.textContent || ""
+    if (styleText) {
+      const styleEl = document.createElement("style")
+      styleEl.textContent = styleText
+      container.appendChild(styleEl)
+    }
+
+    // move the generated <body> content under container
+    // (clone so we don't disturb the parsed doc)
+    const bodyClone = doc.body.cloneNode(true) as HTMLElement
+    container.appendChild(bodyClone)
+
+    document.body.appendChild(container)
+
+    const filename = `${(resumeData.personal.firstName || "resume").replace(/\s+/g, "_")}.pdf`
+
+    await html2pdf()
+      .from(container)
+      .set({
+        margin: 0.4,
+        filename,
+        image: { type: "jpeg", quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+      })
+      .save()
+
+    document.body.removeChild(container)
+    toast({ title: "Resume downloaded", description: `${filename} saved.` })
+  } catch (err) {
+    console.error("download resume error", err)
+    toast({ title: "Download failed", description: "Could not create PDF.", variant: "destructive" })
   }
+}
+
+
+
+  const previewResume = () => {
+  if (!generatedResume) {
+    toast({ title: "No resume generated", description: "Generate a resume first.", variant: "destructive" })
+    return
+  }
+  const w = window.open("", "_blank", "noopener,noreferrer")
+  if (!w) {
+    toast({ title: "Popup blocked", description: "Allow popups to preview resume", variant: "destructive" })
+    return
+  }
+
+  // Replace body with parsed content
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(generatedResume, "text/html")
+
+  w.document.replaceChild(
+    w.document.importNode(doc.documentElement, true),
+    w.document.documentElement
+  )
+}
+
+
 
   const removeUploadedFile = () => {
     setUploadedFile(null)
@@ -536,14 +606,16 @@ export default function ResumePage() {
             <p className="text-muted-foreground">Create an ATS-optimized resume with AI-powered suggestions</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={previewResume}>
+            <Button variant="outline" onClick={previewResume} disabled={!generatedResume}>
               <Eye className="h-4 w-4 mr-2" />
               Preview
             </Button>
-            <Button onClick={downloadResume}>
+
+            <Button onClick={downloadResume} disabled={!generatedResume}>
               <Download className="h-4 w-4 mr-2" />
               Download PDF
             </Button>
+
           </div>
         </div>
 
@@ -745,10 +817,10 @@ export default function ResumePage() {
                       <div
                         key={index}
                         className={`border-l-4 pl-4 ${suggestion.type === "success"
-                            ? "border-green-500"
-                            : suggestion.type === "warning"
-                              ? "border-yellow-500"
-                              : "border-blue-500"
+                          ? "border-green-500"
+                          : suggestion.type === "warning"
+                            ? "border-yellow-500"
+                            : "border-blue-500"
                           }`}
                       >
                         <h4 className="font-medium text-sm">{suggestion.title}</h4>
@@ -949,10 +1021,10 @@ export default function ResumePage() {
                           <div
                             key={index}
                             className={`border-l-4 pl-4 mb-3 ${suggestion.type === "success"
-                                ? "border-green-500"
-                                : suggestion.type === "warning"
-                                  ? "border-yellow-500"
-                                  : "border-blue-500"
+                              ? "border-green-500"
+                              : suggestion.type === "warning"
+                                ? "border-yellow-500"
+                                : "border-blue-500"
                               }`}
                           >
                             <h5 className="font-medium text-sm break-words">{suggestion.title}</h5>
@@ -1345,7 +1417,8 @@ export default function ResumePage() {
                               const data = await res.json()
 
                               if (data.success) {
-                                setGeneratedResume(data.resume)
+                                setGeneratedResume(data.resumeHtml)
+                                setGeneratedResumeText(data.resumeText)
                                 toast({ title: "Resume generated successfully!" })
                               } else {
                                 toast({ title: "Error", description: data.error, variant: "destructive" })
@@ -1488,10 +1561,10 @@ export default function ResumePage() {
                       <div
                         key={index}
                         className={`border-l-4 pl-4 ${suggestion.type === "success"
-                            ? "border-green-500"
-                            : suggestion.type === "warning"
-                              ? "border-yellow-500"
-                              : "border-blue-500"
+                          ? "border-green-500"
+                          : suggestion.type === "warning"
+                            ? "border-yellow-500"
+                            : "border-blue-500"
                           }`}
                       >
                         <h4 className="font-medium text-sm">{suggestion.title}</h4>
