@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/lib/supabaseClient"
+import { CheckedState } from "@radix-ui/react-checkbox"
+import { formatRelativeDate } from "@/lib/date";
 import {
   Search,
   MapPin,
@@ -23,97 +26,10 @@ import {
   Loader2,
 } from "lucide-react"
 
-const internships = [
-  {
-    id: 1,
-    title: "Software Engineering Intern",
-    company: "Google",
-    location: "Mountain View, CA",
-    type: "Full-time",
-    duration: "12 weeks",
-    salary: "$8,000/month",
-    matchScore: 95,
-    description:
-      "Work on cutting-edge projects with the Chrome team, developing new features and optimizing performance.",
-    skills: ["React", "TypeScript", "Node.js", "Python"],
-    posted: "2 days ago",
-    applicants: 234,
-    logo: "/placeholder.svg?height=40&width=40",
-    companySize: "Large (500+)",
-    remote: false,
-  },
-  {
-    id: 2,
-    title: "Frontend Developer Intern",
-    company: "Meta",
-    location: "Menlo Park, CA",
-    type: "Full-time",
-    duration: "16 weeks",
-    salary: "$7,500/month",
-    matchScore: 88,
-    description: "Join the React team and contribute to open source projects while building user interfaces.",
-    skills: ["React", "JavaScript", "CSS", "GraphQL"],
-    posted: "1 week ago",
-    applicants: 189,
-    logo: "/placeholder.svg?height=40&width=40",
-    companySize: "Large (500+)",
-    remote: false,
-  },
-  {
-    id: 3,
-    title: "Data Science Intern",
-    company: "Netflix",
-    location: "Los Gatos, CA",
-    type: "Full-time",
-    duration: "10 weeks",
-    salary: "$7,000/month",
-    matchScore: 72,
-    description: "Analyze user behavior data and build machine learning models to improve content recommendations.",
-    skills: ["Python", "SQL", "Machine Learning", "TensorFlow"],
-    posted: "3 days ago",
-    applicants: 156,
-    logo: "/placeholder.svg?height=40&width=40",
-    companySize: "Large (500+)",
-    remote: false,
-  },
-  {
-    id: 4,
-    title: "Product Design Intern",
-    company: "Airbnb",
-    location: "San Francisco, CA",
-    type: "Full-time",
-    duration: "12 weeks",
-    salary: "$6,500/month",
-    matchScore: 65,
-    description: "Design user experiences for millions of travelers worldwide, working closely with product teams.",
-    skills: ["Figma", "Sketch", "Prototyping", "User Research"],
-    posted: "5 days ago",
-    applicants: 98,
-    logo: "/placeholder.svg?height=40&width=40",
-    companySize: "Large (500+)",
-    remote: false,
-  },
-  {
-    id: 5,
-    title: "Remote Backend Intern",
-    company: "Stripe",
-    location: "Remote",
-    type: "Full-time",
-    duration: "14 weeks",
-    salary: "$8,500/month",
-    matchScore: 82,
-    description: "Build scalable payment infrastructure and APIs used by millions of businesses worldwide.",
-    skills: ["Node.js", "Python", "PostgreSQL", "AWS"],
-    posted: "1 day ago",
-    applicants: 67,
-    logo: "/placeholder.svg?height=40&width=40",
-    companySize: "Medium (51-500)",
-    remote: true,
-  },
-]
-
 export default function SearchPage() {
   const { toast } = useToast()
+  const [internships, setInternships] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedLocation, setSelectedLocation] = useState("all")
   const [selectedType, setSelectedType] = useState("all")
@@ -141,40 +57,61 @@ export default function SearchPage() {
     "AWS",
   ]
 
+  // Fetch internships from Supabase
+  useEffect(() => {
+    const fetchInternships = async () => {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from("internships")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("Error fetching internships:", error)
+        toast({
+          title: "Error loading internships",
+          description: error.message,
+          variant: "destructive",
+        })
+      } else {
+        setInternships(data || [])
+      }
+      setLoading(false)
+    }
+
+    fetchInternships()
+  }, [toast])
+
   const filteredInternships = useMemo(() => {
     const filtered = internships.filter((internship) => {
-      // Search query filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         const matchesQuery =
-          internship.title.toLowerCase().includes(query) ||
-          internship.company.toLowerCase().includes(query) ||
-          internship.skills.some((skill) => skill.toLowerCase().includes(query))
+          internship.title?.toLowerCase().includes(query) ||
+          internship.company?.toLowerCase().includes(query) ||
+          (internship.skills || []).some((skill: string) => skill.toLowerCase().includes(query))
         if (!matchesQuery) return false
       }
 
-      // Location filter
       if (selectedLocation !== "all") {
-        if (selectedLocation === "remote" && !internship.remote) return false
-        if (selectedLocation !== "remote" && !internship.location.toLowerCase().includes(selectedLocation)) return false
+        if (selectedLocation === "remote" && internship.location?.toLowerCase() !== "remote") return false
+        if (selectedLocation !== "remote" && !internship.location?.toLowerCase().includes(selectedLocation)) return false
       }
 
-      // Type filter
-      if (selectedType !== "all" && internship.type.toLowerCase() !== selectedType) return false
+      if (selectedType !== "all" && internship.type?.toLowerCase() !== selectedType) return false
 
-      // Skills filter
       if (selectedSkills.length > 0) {
         const hasMatchingSkill = selectedSkills.some((skill) =>
-          internship.skills.some((internshipSkill) => internshipSkill.toLowerCase().includes(skill.toLowerCase())),
+          (internship.skills || []).some((internshipSkill: string) =>
+            internshipSkill.toLowerCase().includes(skill.toLowerCase())
+          )
         )
         if (!hasMatchingSkill) return false
       }
 
-      // Company size filter
       if (selectedCompanySize.length > 0 && !selectedCompanySize.includes(internship.companySize)) return false
 
-      // Duration filter
-      if (selectedDuration.length > 0) {
+      if (selectedDuration.length > 0 && internship.duration) {
         const weeks = Number.parseInt(internship.duration.split(" ")[0])
         const matchesDuration = selectedDuration.some((duration) => {
           if (duration === "8-10 weeks") return weeks >= 8 && weeks <= 10
@@ -185,25 +122,23 @@ export default function SearchPage() {
         if (!matchesDuration) return false
       }
 
-      // Remote filter
       if (remoteOnly && !internship.remote) return false
 
       return true
     })
 
-    // Sort filtered results
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "match":
-          return b.matchScore - a.matchScore
+          return (b.matchScore || 0) - (a.matchScore || 0)
         case "recent":
-          return new Date(b.posted).getTime() - new Date(a.posted).getTime()
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         case "salary":
-          const aSalary = Number.parseInt(a.salary.replace(/[^0-9]/g, ""))
-          const bSalary = Number.parseInt(b.salary.replace(/[^0-9]/g, ""))
+          const aSalary = Number.parseInt(a.salary?.replace(/[^0-9]/g, "") || "0")
+          const bSalary = Number.parseInt(b.salary?.replace(/[^0-9]/g, "") || "0")
           return bSalary - aSalary
         case "company":
-          return a.company.localeCompare(b.company)
+          return (a.company || "").localeCompare(b.company || "")
         default:
           return 0
       }
@@ -211,6 +146,7 @@ export default function SearchPage() {
 
     return filtered
   }, [
+    internships,
     searchQuery,
     selectedLocation,
     selectedType,
@@ -234,7 +170,7 @@ export default function SearchPage() {
     })
   }
 
-  const handleApply = async (internship: (typeof internships)[0]) => {
+  const handleApply = async (internship: any) => {
     if (appliedInternships.includes(internship.id)) {
       toast({
         title: "Already applied",
@@ -245,17 +181,14 @@ export default function SearchPage() {
     }
 
     setIsApplying(internship.id)
-
     try {
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 2000))
-
       setAppliedInternships((prev) => [...prev, internship.id])
       toast({
         title: "Application submitted!",
         description: `Your application to ${internship.company} has been submitted successfully.`,
       })
-    } catch (error) {
+    } catch {
       toast({
         title: "Application failed",
         description: "There was an error submitting your application. Please try again.",
@@ -264,18 +197,6 @@ export default function SearchPage() {
     } finally {
       setIsApplying(null)
     }
-  }
-
-  const handleSkillToggle = (skill: string) => {
-    setSelectedSkills((prev) => (prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]))
-  }
-
-  const handleCompanySizeToggle = (size: string) => {
-    setSelectedCompanySize((prev) => (prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]))
-  }
-
-  const handleDurationToggle = (duration: string) => {
-    setSelectedDuration((prev) => (prev.includes(duration) ? prev.filter((d) => d !== duration) : [...prev, duration]))
   }
 
   const clearFilters = () => {
@@ -295,6 +216,29 @@ export default function SearchPage() {
     return "bg-gray-100 text-gray-800"
   }
 
+  // ✅ Fixed handlers
+  const handleSkillToggle = (skill: string, checked: CheckedState) => {
+    setSelectedSkills((prev) =>
+      checked === true ? [...prev, skill] : prev.filter((s) => s !== skill)
+    )
+  }
+
+  const handleCompanySizeToggle = (size: string, checked: CheckedState) => {
+    setSelectedCompanySize((prev) =>
+      checked === true ? [...prev, size] : prev.filter((s) => s !== size)
+    )
+  }
+
+  const handleDurationToggle = (duration: string, checked: CheckedState) => {
+    setSelectedDuration((prev) =>
+      checked === true ? [...prev, duration] : prev.filter((d) => d !== duration)
+    )
+  }
+
+  const handleRemoteToggle = (checked: CheckedState) => {
+    setRemoteOnly(checked === true)
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -303,7 +247,7 @@ export default function SearchPage() {
           <p className="text-muted-foreground">Discover opportunities tailored to your skills and career goals</p>
         </div>
 
-        {/* Search and Filters */}
+        {/* Search + Filters (same as your code) */}
         <Card>
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row gap-4">
@@ -369,10 +313,11 @@ export default function SearchPage() {
                       {allSkills.map((skill) => (
                         <div key={skill} className="flex items-center space-x-2">
                           <Checkbox
-                            id={skill}
+                            id={`skill-${skill}`}
                             checked={selectedSkills.includes(skill)}
-                            onCheckedChange={() => handleSkillToggle(skill)}
+                            onCheckedChange={(checked) => handleSkillToggle(skill, checked)}
                           />
+
                           <Label htmlFor={skill} className="text-sm">
                             {skill}
                           </Label>
@@ -389,7 +334,11 @@ export default function SearchPage() {
                           <Checkbox
                             id={size}
                             checked={selectedCompanySize.includes(size)}
-                            onCheckedChange={() => handleCompanySizeToggle(size)}
+                            onCheckedChange={() =>
+                              setSelectedCompanySize((prev) =>
+                                prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
+                              )
+                            }
                           />
                           <Label htmlFor={size} className="text-sm">
                             {size}
@@ -407,8 +356,13 @@ export default function SearchPage() {
                           <Checkbox
                             id={duration}
                             checked={selectedDuration.includes(duration)}
-                            onCheckedChange={() => handleDurationToggle(duration)}
+                            onCheckedChange={() =>
+                              setSelectedDuration((prev) =>
+                                prev.includes(duration) ? prev.filter((d) => d !== duration) : [...prev, duration]
+                              )
+                            }
                           />
+
                           <Label htmlFor={duration} className="text-sm">
                             {duration}
                           </Label>
@@ -421,7 +375,11 @@ export default function SearchPage() {
                     <Label className="text-sm font-medium mb-2 block">Other</Label>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
-                        <Checkbox id="remote" checked={remoteOnly} onCheckedChange={setRemoteOnly} />
+                        <Checkbox
+                          id="remote"
+                          checked={remoteOnly}
+                          onCheckedChange={handleRemoteToggle} // ✅ fixed
+                        />
                         <Label htmlFor="remote" className="text-sm">
                           Remote Only
                         </Label>
@@ -436,38 +394,28 @@ export default function SearchPage() {
             )}
           </CardContent>
         </Card>
+        {/* ... keep your existing filter UI unchanged ... */}
 
         {/* Results */}
-        <div className="flex justify-between items-center">
-          <p className="text-muted-foreground">
-            Showing {filteredInternships.length} of {internships.length} internships
-          </p>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="match">Best Match</SelectItem>
-              <SelectItem value="recent">Most Recent</SelectItem>
-              <SelectItem value="salary">Highest Salary</SelectItem>
-              <SelectItem value="company">Company A-Z</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Internship Cards */}
-        <div className="space-y-4">
-          {filteredInternships.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground">No internships match your current filters.</p>
-                <Button variant="outline" onClick={clearFilters} className="mt-4 bg-transparent">
-                  Clear Filters
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            filteredInternships.map((internship) => (
+        {loading ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+              <p className="text-muted-foreground">Loading internships...</p>
+            </CardContent>
+          </Card>
+        ) : filteredInternships.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-muted-foreground">No internships match your current filters.</p>
+              <Button variant="outline" onClick={clearFilters} className="mt-4 bg-transparent">
+                Clear Filters
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredInternships.map((internship) => (
               <Card key={internship.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
@@ -482,7 +430,11 @@ export default function SearchPage() {
                             <h3 className="text-lg font-semibold">{internship.title}</h3>
                             <p className="text-muted-foreground">{internship.company}</p>
                           </div>
-                          <Badge className={getMatchColor(internship.matchScore)}>{internship.matchScore}% Match</Badge>
+                          {internship.matchScore && (
+                            <Badge className={getMatchColor(internship.matchScore)}>
+                              {internship.matchScore}% Match
+                            </Badge>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
@@ -499,7 +451,6 @@ export default function SearchPage() {
                             {internship.duration}
                           </div>
                           <div className="flex items-center gap-1">
-                            <DollarSign className="h-4 w-4" />
                             {internship.salary}
                           </div>
                           {internship.remote && (
@@ -512,7 +463,7 @@ export default function SearchPage() {
                         <p className="text-sm mb-3">{internship.description}</p>
 
                         <div className="flex flex-wrap gap-2 mb-4">
-                          {internship.skills.map((skill) => (
+                          {(internship.skills || []).map((skill: string) => (
                             <Badge key={skill} variant="outline">
                               {skill}
                             </Badge>
@@ -521,7 +472,10 @@ export default function SearchPage() {
 
                         <div className="flex items-center justify-between">
                           <div className="text-xs text-muted-foreground">
-                            Posted {internship.posted} • {internship.applicants} applicants
+                           <p className="text-sm text-gray-500">
+                            Posted {formatRelativeDate(internship.posted_date)}
+                          </p>
+
                           </div>
 
                           <div className="flex gap-2">
@@ -559,9 +513,9 @@ export default function SearchPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   )
