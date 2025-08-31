@@ -93,6 +93,27 @@ export default function ProfilePage() {
 
     setIsUploadingAvatar(true)
     try {
+      // Client-side validations for quicker feedback
+      const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        toast({
+          title: "File too large",
+          description: "Please upload an image up to 10MB.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Unsupported file type",
+          description: "Please upload a JPEG, PNG, WEBP, or GIF image.",
+          variant: "destructive",
+        })
+        return
+      }
+
       const avatarUrl = await uploadAvatar(file)
       if (avatarUrl) {
         await updateUserProfile({ avatar_url: avatarUrl })
@@ -100,6 +121,12 @@ export default function ProfilePage() {
         toast({
           title: "Avatar updated!",
           description: "Your profile picture has been updated successfully.",
+        })
+      } else {
+        toast({
+          title: "Upload failed",
+          description: "Unable to upload image. Please try again or use a different image.",
+          variant: "destructive",
         })
       }
     } catch (error) {

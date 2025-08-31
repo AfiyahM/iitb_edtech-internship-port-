@@ -142,12 +142,25 @@ export async function uploadAvatar(file: File): Promise<string | null> {
 
     if (!session?.user) return null
 
+    // Basic validations
+    const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      console.error("Error uploading avatar: file exceeds 10MB limit")
+      return null
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if (!allowedTypes.includes(file.type)) {
+      console.error("Error uploading avatar: unsupported image type", file.type)
+      return null
+    }
+
     const fileExt = file.name.split(".").pop()
-    const fileName = `${session.user.id}.${fileExt}`
+    const fileName = `${session.user.id}/avatar.${fileExt}`
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
-      .upload(fileName, file, { upsert: true })
+      .upload(fileName, file, { upsert: true, contentType: file.type, cacheControl: "3600" })
 
     if (uploadError) {
       console.error("Error uploading avatar:", uploadError)

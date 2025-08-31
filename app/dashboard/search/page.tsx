@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -11,187 +11,170 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabaseClient"
-import { CheckedState } from "@radix-ui/react-checkbox"
-import { formatRelativeDate } from "@/lib/date";
+import { formatRelativeDate } from "@/lib/date"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import {
   Search,
   MapPin,
   Building,
   Clock,
-  DollarSign,
   Filter,
   Heart,
   ExternalLink,
-  Briefcase,
   Loader2,
+  Calendar,
 } from "lucide-react"
 
-export default function SearchPage() {
-  const { toast } = useToast()
-  const [internships, setInternships] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedLocation, setSelectedLocation] = useState("all")
-  const [selectedType, setSelectedType] = useState("all")
-  const [showFilters, setShowFilters] = useState(false)
-  const [savedInternships, setSavedInternships] = useState<number[]>([])
-  const [appliedInternships, setAppliedInternships] = useState<number[]>([])
-  const [sortBy, setSortBy] = useState("match")
-  const [isApplying, setIsApplying] = useState<number | null>(null)
+interface Internship {
+  id: number
+  title: string
+  company: string
+  location: string
+  type: string
+  description: string
+  requirements: string[]
+  skills: string[]
+  duration: string
+  stipend: string
+  deadline: string
+  created_at: string
+  apply_link: string
+  company_logo?: string
+  remote: boolean
+}
 
-  // Filter states
+const formatDate = (date: string | Date | null | undefined): string => {
+  if (!date) return 'No deadline'
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date
+    if (isNaN(dateObj.getTime())) return 'Invalid date'
+    const options: Intl.DateTimeFormatOptions = { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }
+    return dateObj.toLocaleDateString(undefined, options)
+  } catch (error) {
+    console.error('Error formatting date:', error)
+    return 'Invalid date'
+  }
+}
+
+export default function SearchPage() {
+  const [internships, setInternships] = useState<Internship[]>([])
+  const [filteredInternships, setFilteredInternships] = useState<Internship[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
+  const [appliedInternships, setAppliedInternships] = useState<number[]>([])
+  const [savedInternships, setSavedInternships] = useState<number[]>([])
+  const [isApplying, setIsApplying] = useState<number | null>(null)
+  const [showFilters, setShowFilters] = useState(false)
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
-  const [selectedCompanySize, setSelectedCompanySize] = useState<string[]>([])
   const [selectedDuration, setSelectedDuration] = useState<string[]>([])
   const [remoteOnly, setRemoteOnly] = useState(false)
+  const [internshipTypes, setInternshipTypes] = useState<string[]>([])
+  const [allSkills, setAllSkills] = useState<string[]>([])
+  const { toast } = useToast()
 
-  const allSkills = [
-    "React",
-    "Python",
-    "JavaScript",
-    "TypeScript",
-    "Node.js",
-    "SQL",
-    "Machine Learning",
-    "Figma",
-    "AWS",
-  ]
-
-  // Fetch internships from Supabase
+  // Fetch internships
   useEffect(() => {
     const fetchInternships = async () => {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from("internships")
-        .select("*")
-        .order("created_at", { ascending: false })
+      try {
+        const { data, error } = await supabase
+          .from('internships')
+          .select('*')
+          .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error("Error fetching internships:", error)
+        if (error) throw error
+
+        if (data) {
+          setInternships(data)
+          setFilteredInternships(data)
+          
+          // Extract unique types and skills
+          const types = new Set<string>()
+          const skills = new Set<string>()
+          
+          data.forEach(internship => {
+            types.add(internship.type)
+            internship.skills.forEach((skill: string) => skills.add(skill))
+          })
+          
+          setInternshipTypes(Array.from(types))
+          setAllSkills(Array.from(skills))
+        }
+      } catch (error) {
+        console.error('Error fetching internships:', error)
         toast({
-          title: "Error loading internships",
-          description: error.message,
+          title: "Error",
+          description: "Failed to load internships. Please try again later.",
           variant: "destructive",
         })
-      } else {
-        setInternships(data || [])
+      } finally {
+        setIsLoading(false)
       }
-      setLoading(false)
     }
 
     fetchInternships()
   }, [toast])
 
-  const filteredInternships = useMemo(() => {
-    const filtered = internships.filter((internship) => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        const matchesQuery =
-          internship.title?.toLowerCase().includes(query) ||
-          internship.company?.toLowerCase().includes(query) ||
-          (internship.skills || []).some((skill: string) => skill.toLowerCase().includes(query))
-        if (!matchesQuery) return false
-      }
+  // Apply filters
+  useEffect(() => {
+    let result = [...internships]
 
-      if (selectedLocation !== "all") {
-        if (selectedLocation === "remote" && internship.location?.toLowerCase() !== "remote") return false
-        if (selectedLocation !== "remote" && !internship.location?.toLowerCase().includes(selectedLocation)) return false
-      }
-
-      if (selectedType !== "all" && internship.type?.toLowerCase() !== selectedType) return false
-
-      if (selectedSkills.length > 0) {
-        const hasMatchingSkill = selectedSkills.some((skill) =>
-          (internship.skills || []).some((internshipSkill: string) =>
-            internshipSkill.toLowerCase().includes(skill.toLowerCase())
-          )
-        )
-        if (!hasMatchingSkill) return false
-      }
-
-      if (selectedCompanySize.length > 0 && !selectedCompanySize.includes(internship.companySize)) return false
-
-      if (selectedDuration.length > 0 && internship.duration) {
-        const weeks = Number.parseInt(internship.duration.split(" ")[0])
-        const matchesDuration = selectedDuration.some((duration) => {
-          if (duration === "8-10 weeks") return weeks >= 8 && weeks <= 10
-          if (duration === "10-12 weeks") return weeks >= 10 && weeks <= 12
-          if (duration === "12+ weeks") return weeks >= 12
-          return false
-        })
-        if (!matchesDuration) return false
-      }
-
-      if (remoteOnly && !internship.remote) return false
-
-      return true
-    })
-
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "match":
-          return (b.matchScore || 0) - (a.matchScore || 0)
-        case "recent":
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        case "salary":
-          const aSalary = Number.parseInt(a.salary?.replace(/[^0-9]/g, "") || "0")
-          const bSalary = Number.parseInt(b.salary?.replace(/[^0-9]/g, "") || "0")
-          return bSalary - aSalary
-        case "company":
-          return (a.company || "").localeCompare(b.company || "")
-        default:
-          return 0
-      }
-    })
-
-    return filtered
-  }, [
-    internships,
-    searchQuery,
-    selectedLocation,
-    selectedType,
-    selectedSkills,
-    selectedCompanySize,
-    selectedDuration,
-    remoteOnly,
-    sortBy,
-  ])
-
-  const toggleSave = (id: number) => {
-    setSavedInternships((prev) => {
-      const newSaved = prev.includes(id) ? prev.filter((savedId) => savedId !== id) : [...prev, id]
-      toast({
-        title: newSaved.includes(id) ? "Internship saved!" : "Internship removed from saved",
-        description: newSaved.includes(id)
-          ? "You can find it in your saved internships."
-          : "Removed from your saved list.",
-      })
-      return newSaved
-    })
-  }
-
-  const handleApply = async (internship: any) => {
-    if (appliedInternships.includes(internship.id)) {
-      toast({
-        title: "Already applied",
-        description: "You have already applied to this internship.",
-        variant: "destructive",
-      })
-      return
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(
+        internship =>
+          internship.title.toLowerCase().includes(query) ||
+          internship.company.toLowerCase().includes(query) ||
+          internship.description.toLowerCase().includes(query) ||
+          internship.skills.some(skill => skill.toLowerCase().includes(query))
+      )
     }
 
-    setIsApplying(internship.id)
+    if (selectedSkills.length > 0) {
+      result = result.filter(internship =>
+        selectedSkills.every(skill => internship.skills.includes(skill))
+      )
+    }
+
+    if (selectedDuration.length > 0) {
+      result = result.filter(internship =>
+        selectedDuration.includes(internship.duration)
+      )
+    }
+
+    if (remoteOnly) {
+      result = result.filter(internship => internship.remote)
+    }
+
+    setFilteredInternships(result)
+  }, [searchQuery, internships, selectedSkills, selectedDuration, remoteOnly])
+
+  const handleApply = async (internship: Internship) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      setAppliedInternships((prev) => [...prev, internship.id])
+      setIsApplying(internship.id)
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setAppliedInternships(prev => [...prev, internship.id])
       toast({
         title: "Application submitted!",
-        description: `Your application to ${internship.company} has been submitted successfully.`,
+        description: `Successfully applied for ${internship.title} at ${internship.company}`,
       })
-    } catch {
+    } catch (error) {
+      console.error('Error applying:', error)
       toast({
-        title: "Application failed",
-        description: "There was an error submitting your application. Please try again.",
+        title: "Error",
+        description: "Failed to submit application. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -199,324 +182,384 @@ export default function SearchPage() {
     }
   }
 
+  const toggleSave = (internshipId: number) => {
+    setSavedInternships(prev =>
+      prev.includes(internshipId)
+        ? prev.filter(id => id !== internshipId)
+        : [...prev, internshipId]
+    )
+  }
+
+  const handleViewDetails = (internship: Internship) => {
+    setSelectedInternship(internship)
+    setIsModalOpen(true)
+  }
+
   const clearFilters = () => {
-    setSearchQuery("")
-    setSelectedLocation("all")
-    setSelectedType("all")
+    setSearchQuery('')
     setSelectedSkills([])
-    setSelectedCompanySize([])
     setSelectedDuration([])
     setRemoteOnly(false)
   }
 
-  const getMatchColor = (score: number) => {
-    if (score >= 90) return "bg-green-100 text-green-800"
-    if (score >= 75) return "bg-blue-100 text-blue-800"
-    if (score >= 60) return "bg-yellow-100 text-yellow-800"
-    return "bg-gray-100 text-gray-800"
-  }
-
-  // ✅ Fixed handlers
-  const handleSkillToggle = (skill: string, checked: CheckedState) => {
-    setSelectedSkills((prev) =>
-      checked === true ? [...prev, skill] : prev.filter((s) => s !== skill)
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      </DashboardLayout>
     )
-  }
-
-  const handleCompanySizeToggle = (size: string, checked: CheckedState) => {
-    setSelectedCompanySize((prev) =>
-      checked === true ? [...prev, size] : prev.filter((s) => s !== size)
-    )
-  }
-
-  const handleDurationToggle = (duration: string, checked: CheckedState) => {
-    setSelectedDuration((prev) =>
-      checked === true ? [...prev, duration] : prev.filter((d) => d !== duration)
-    )
-  }
-
-  const handleRemoteToggle = (checked: CheckedState) => {
-    setRemoteOnly(checked === true)
   }
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Find Your Perfect Internship</h1>
-          <p className="text-muted-foreground">Discover opportunities tailored to your skills and career goals</p>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+          <div className="w-full md:w-1/2">
+            <h1 className="text-3xl font-bold mb-2">Find Internships</h1>
+            <p className="text-muted-foreground">
+              Browse and apply for the best internship opportunities
+            </p>
+          </div>
+          
+          <div className="w-full md:w-1/2 flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search internships..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            
+            <Select>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {internshipTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant={showFilters ? "default" : "outline"}
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              {showFilters ? 'Hide Filters' : 'Filters'}
+            </Button>
+          </div>
         </div>
 
-        {/* Search + Filters (same as your code) */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search internships, companies, or skills..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Locations</SelectItem>
-                    <SelectItem value="san francisco">San Francisco, CA</SelectItem>
-                    <SelectItem value="mountain view">Mountain View, CA</SelectItem>
-                    <SelectItem value="menlo park">Menlo Park, CA</SelectItem>
-                    <SelectItem value="remote">Remote</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={selectedType} onValueChange={setSelectedType}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="full-time">Full-time</SelectItem>
-                    <SelectItem value="part-time">Part-time</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters
-                  {(selectedSkills.length > 0 ||
-                    selectedCompanySize.length > 0 ||
-                    selectedDuration.length > 0 ||
-                    remoteOnly) && (
-                    <Badge variant="secondary" className="ml-2">
-                      {selectedSkills.length +
-                        selectedCompanySize.length +
-                        selectedDuration.length +
-                        (remoteOnly ? 1 : 0)}
-                    </Badge>
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            {showFilters && (
-              <div className="mt-4 pt-4 border-t">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Skills</Label>
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                      {allSkills.map((skill) => (
-                        <div key={skill} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`skill-${skill}`}
-                            checked={selectedSkills.includes(skill)}
-                            onCheckedChange={(checked) => handleSkillToggle(skill, checked)}
-                          />
-
-                          <Label htmlFor={skill} className="text-sm">
-                            {skill}
-                          </Label>
-                        </div>
-                      ))}
+        {showFilters && (
+          <div className="bg-muted/50 p-6 rounded-lg mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <h3 className="font-medium mb-3">Skills</h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto p-2 border rounded-md">
+                  {allSkills.map((skill) => (
+                    <div key={skill} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`skill-${skill}`}
+                        checked={selectedSkills.includes(skill)}
+                        onCheckedChange={(checked) => {
+                          setSelectedSkills(prev =>
+                            checked
+                              ? [...prev, skill]
+                              : prev.filter((s) => s !== skill)
+                          )
+                        }}
+                      />
+                      <Label htmlFor={`skill-${skill}`} className="text-sm">
+                        {skill}
+                      </Label>
                     </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Company Size</Label>
-                    <div className="space-y-2">
-                      {["Startup (1-50)", "Medium (51-500)", "Large (500+)"].map((size) => (
-                        <div key={size} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={size}
-                            checked={selectedCompanySize.includes(size)}
-                            onCheckedChange={() =>
-                              setSelectedCompanySize((prev) =>
-                                prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
-                              )
-                            }
-                          />
-                          <Label htmlFor={size} className="text-sm">
-                            {size}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Duration</Label>
-                    <div className="space-y-2">
-                      {["8-10 weeks", "10-12 weeks", "12+ weeks"].map((duration) => (
-                        <div key={duration} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={duration}
-                            checked={selectedDuration.includes(duration)}
-                            onCheckedChange={() =>
-                              setSelectedDuration((prev) =>
-                                prev.includes(duration) ? prev.filter((d) => d !== duration) : [...prev, duration]
-                              )
-                            }
-                          />
-
-                          <Label htmlFor={duration} className="text-sm">
-                            {duration}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Other</Label>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="remote"
-                          checked={remoteOnly}
-                          onCheckedChange={handleRemoteToggle} // ✅ fixed
-                        />
-                        <Label htmlFor="remote" className="text-sm">
-                          Remote Only
-                        </Label>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={clearFilters} className="mt-4 w-full bg-transparent">
-                      Clear All Filters
-                    </Button>
-                  </div>
+                  ))}
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-        {/* ... keep your existing filter UI unchanged ... */}
 
-        {/* Results */}
-        {loading ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-              <p className="text-muted-foreground">Loading internships...</p>
-            </CardContent>
-          </Card>
-        ) : filteredInternships.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">No internships match your current filters.</p>
-              <Button variant="outline" onClick={clearFilters} className="mt-4 bg-transparent">
-                Clear Filters
-              </Button>
-            </CardContent>
-          </Card>
+              <div>
+                <h3 className="font-medium mb-3">Duration</h3>
+                <div className="space-y-2">
+                  {["1-3 months", "3-6 months", "6+ months"].map((duration) => (
+                    <div key={duration} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`duration-${duration}`}
+                        checked={selectedDuration.includes(duration)}
+                        onCheckedChange={(checked) => {
+                          setSelectedDuration(prev =>
+                            checked
+                              ? [...prev, duration]
+                              : prev.filter((d) => d !== duration)
+                          )
+                        }}
+                      />
+                      <Label htmlFor={`duration-${duration}`} className="text-sm">
+                        {duration}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col justify-between">
+                <div>
+                  <h3 className="font-medium mb-3">Location</h3>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remote-only"
+                      checked={remoteOnly}
+                      onCheckedChange={(checked) => setRemoteOnly(checked === true)}
+                    />
+                    <Label htmlFor="remote-only" className="text-sm">
+                      Remote only
+                    </Label>
+                  </div>
+                </div>
+
+                <div className="flex space-x-2 mt-4">
+                  <Button variant="outline" size="sm" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                  <Button size="sm" onClick={() => setShowFilters(false)}>
+                    Apply filters
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {filteredInternships.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No internships found matching your criteria.</p>
+            <Button variant="outline" className="mt-4" onClick={clearFilters}>
+              Clear all filters
+            </Button>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredInternships.map((internship) => (
-              <Card key={internship.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex gap-4 flex-1">
-                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <Building className="h-6 w-6 text-gray-600" />
-                      </div>
-
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h3 className="text-lg font-semibold">{internship.title}</h3>
-                            <p className="text-muted-foreground">{internship.company}</p>
-                          </div>
-                          {internship.matchScore && (
-                            <Badge className={getMatchColor(internship.matchScore)}>
-                              {internship.matchScore}% Match
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            {internship.location}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Briefcase className="h-4 w-4" />
-                            {internship.type}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {internship.duration}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {internship.salary}
-                          </div>
-                          {internship.remote && (
-                            <Badge variant="secondary" className="text-xs">
-                              Remote
-                            </Badge>
-                          )}
-                        </div>
-
-                        <p className="text-sm mb-3">{internship.description}</p>
-
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {(internship.skills || []).map((skill: string) => (
-                            <Badge key={skill} variant="outline">
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div className="text-xs text-muted-foreground">
-                           <p className="text-sm text-gray-500">
-                            Posted {formatRelativeDate(internship.posted_date)}
-                          </p>
-
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => toggleSave(internship.id)}>
-                              <Heart
-                                className={`h-4 w-4 ${
-                                  savedInternships.includes(internship.id) ? "fill-red-500 text-red-500" : ""
-                                }`}
-                              />
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <ExternalLink className="h-4 w-4 mr-2" />
-                              View Details
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleApply(internship)}
-                              disabled={appliedInternships.includes(internship.id) || isApplying === internship.id}
-                            >
-                              {isApplying === internship.id ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Applying...
-                                </>
-                              ) : appliedInternships.includes(internship.id) ? (
-                                "Applied"
-                              ) : (
-                                "Apply Now"
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
+              <Card key={internship.id} className="flex flex-col h-full">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg">{internship.title}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{internship.company}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => toggleSave(internship.id)}
+                    >
+                      <Heart
+                        className={`h-4 w-4 ${
+                          savedInternships.includes(internship.id)
+                            ? "fill-red-500 text-red-500"
+                            : "text-muted-foreground"
+                        }`}
+                      />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1">
+                  <div className="space-y-4">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <MapPin className="mr-2 h-4 w-4" />
+                      {internship.remote ? 'Remote' : internship.location}
+                    </div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="mr-2 h-4 w-4" />
+                      {internship.duration}
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {internship.skills.slice(0, 3).map((skill) => (
+                        <Badge key={skill} variant="secondary">
+                          {skill}
+                        </Badge>
+                      ))}
+                      {internship.skills.length > 3 && (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          +{internship.skills.length - 3} more
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </CardContent>
+                <div className="p-6 pt-0">
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-muted-foreground">
+                      <Calendar className="inline mr-1 h-4 w-4" />
+                      {formatDate(internship.deadline)}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewDetails(internship)}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                </div>
               </Card>
             ))}
           </div>
         )}
       </div>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {selectedInternship ? (
+            <>
+              <DialogHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <DialogTitle className="text-2xl">
+                      {selectedInternship.title}
+                    </DialogTitle>
+                    <p className="text-muted-foreground">
+                      {selectedInternship.company}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => toggleSave(selectedInternship.id)}
+                  >
+                    <Heart
+                      className={`h-4 w-4 ${
+                        savedInternships.includes(selectedInternship.id)
+                          ? "fill-red-500 text-red-500"
+                          : "text-muted-foreground"
+                      }`}
+                    />
+                  </Button>
+                </div>
+              </DialogHeader>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div>
+                  <h3 className="font-medium mb-2">About the Internship</h3>
+                  <p className="text-muted-foreground">
+                    {selectedInternship.description}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground mb-1">
+                      Duration
+                    </h4>
+                    <p className="flex items-center">
+                      <Clock className="mr-2 h-4 w-4" />
+                      {selectedInternship.duration}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground mb-1">
+                      Location
+                    </h4>
+                    <p className="flex items-center">
+                      <MapPin className="mr-2 h-4 w-4" />
+                      {selectedInternship.remote ? 'Remote' : selectedInternship.location}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground mb-1">
+                      Stipend
+                    </h4>
+                    <p className="flex items-center">
+                      <span className="mr-2">💰</span>
+                      {selectedInternship.stipend || 'Not specified'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground mb-1">
+                      Application Deadline
+                    </h4>
+                    <p className="flex items-center">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {formatDate(selectedInternship.deadline)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <h3 className="font-medium mb-2">Requirements</h3>
+                <ul className="space-y-2">
+                  {selectedInternship.requirements.map((req, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span className="text-muted-foreground">{req}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="mt-6">
+                <h3 className="font-medium mb-2">Skills Required</h3>
+                <div className="flex flex-wrap gap-2">
+                  {selectedInternship.skills.map((skill) => (
+                    <Badge key={skill} variant="secondary">
+                      {skill}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <DialogFooter className="mt-6">
+                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      window.open(selectedInternship.apply_link, '_blank')
+                    }}
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Apply on Company Site
+                  </Button>
+                  <Button
+                    className="w-full"
+                    onClick={() => handleApply(selectedInternship)}
+                    disabled={appliedInternships.includes(selectedInternship.id) || isApplying === selectedInternship.id}
+                  >
+                    {isApplying === selectedInternship.id ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : appliedInternships.includes(selectedInternship.id) ? (
+                      <span className="flex items-center">
+                        <span className="mr-2">✓</span>
+                        Applied
+                      </span>
+                    ) : (
+                      "Apply Now"
+                    )}
+                  </Button>
+                </div>
+              </DialogFooter>
+            </>
+          ) : (
+            <div className="p-4 text-center">
+              <p>No internship selected</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }
