@@ -87,29 +87,77 @@ export default function SearchPage() {
   // Fetch internships
   useEffect(() => {
     const fetchInternships = async () => {
+      console.log('Starting to fetch internships...')
+      console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+      setIsLoading(true)
       try {
-        const { data, error } = await supabase
+        console.log('Sending request to Supabase...')
+        const { data, error, status, statusText } = await supabase
           .from('internships')
           .select('*')
           .order('created_at', { ascending: false })
+          .limit(50)
 
-        if (error) throw error
+        console.log('Supabase response:', { status, statusText, error, data })
+
+        if (error) {
+          console.error('Supabase error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          })
+          throw error
+        }
 
         if (data) {
-          setInternships(data)
-          setFilteredInternships(data)
+          console.log('Raw data from Supabase:', JSON.stringify(data, null, 2))
+          console.log(`Fetched ${data.length} internships`)
+          
+          // Ensure required fields exist and have proper types
+          const processedData = data.map((internship, index) => {
+            const processed = {
+              id: internship.id || 0,
+              title: internship.title || 'Untitled Internship',
+              company: internship.company || 'Unnamed Company',
+              location: internship.location || 'Location not specified',
+              type: internship.type || 'Full-time',
+              description: internship.description || 'No description available',
+              requirements: Array.isArray(internship.requirements) ? internship.requirements : [],
+              skills: Array.isArray(internship.skills) ? internship.skills : [],
+              duration: internship.duration || 'Not specified',
+              stipend: internship.stipend || 'Unpaid',
+              deadline: internship.deadline || null,
+              created_at: internship.created_at || new Date().toISOString(),
+              apply_link: internship.apply_link || '#',
+              remote: Boolean(internship.remote)
+            }
+            console.log(`Processed internship ${index + 1}:`, processed)
+            return processed
+          })
+          
+          setInternships(processedData)
+          setFilteredInternships(processedData)
           
           // Extract unique types and skills
           const types = new Set<string>()
           const skills = new Set<string>()
           
-          data.forEach(internship => {
-            types.add(internship.type)
-            internship.skills.forEach((skill: string) => skills.add(skill))
+          processedData.forEach(internship => {
+            if (internship.type) types.add(internship.type)
+            if (Array.isArray(internship.skills)) {
+              internship.skills.forEach((skill: string) => {
+                if (skill) skills.add(skill.trim())
+              })
+            }
           })
           
-          setInternshipTypes(Array.from(types))
-          setAllSkills(Array.from(skills))
+          setInternshipTypes(Array.from(types).filter(Boolean))
+          setAllSkills(Array.from(skills).filter(Boolean))
+        } else {
+          console.log('No internships found in the database')
+          setInternships([])
+          setFilteredInternships([])
         }
       } catch (error) {
         console.error('Error fetching internships:', error)
@@ -205,8 +253,12 @@ export default function SearchPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="container mx-auto px-4 py-12">
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="w-12 h-12 animate-spin text-primary" />
+            <h2 className="text-xl font-semibold">Loading internships...</h2>
+            <p className="text-muted-foreground">Please wait while we fetch the latest opportunities</p>
+          </div>
         </div>
       </DashboardLayout>
     )
@@ -340,11 +392,24 @@ export default function SearchPage() {
         )}
 
         {filteredInternships.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No internships found matching your criteria.</p>
-            <Button variant="outline" className="mt-4" onClick={clearFilters}>
-              Clear all filters
-            </Button>
+          <div className="col-span-full py-16 text-center">
+            <div className="mx-auto max-w-md space-y-4">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                <Search className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium">No internships found</h3>
+              <p className="text-muted-foreground">
+                {searchQuery || selectedSkills.length > 0 || selectedDuration.length > 0 || remoteOnly
+                  ? 'Try adjusting your search or filter criteria'
+                  : 'There are currently no internships available. Please check back later.'}
+              </p>
+              {(searchQuery || selectedSkills.length > 0 || selectedDuration.length > 0 || remoteOnly) && (
+                <Button variant="outline" onClick={clearFilters} className="mt-4">
+                  <Filter className="mr-2 h-4 w-4" />
+                  Clear all filters
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
