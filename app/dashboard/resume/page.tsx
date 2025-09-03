@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
-import { DashboardLayout } from "@/components/dashboard-layout"
+import  DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -510,84 +510,85 @@ export default function ResumePage() {
   }
 
   const downloadResume = async () => {
-  if (!generatedResume) {
-    toast({ title: "No resume to download", description: "Generate a resume first.", variant: "destructive" })
-    return
-  }
-
-  try {
-    // UMD lib: require or dynamic import is fine
-    const html2pdf: any = require("html2pdf.js")
-
-    // Parse the full HTML you generated on the server
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(generatedResume, "text/html")
-
-    // Build a hidden container in THIS document so styles apply
-    const container = document.createElement("div")
-    container.style.position = "fixed"
-    container.style.left = "-99999px"
-    container.style.top = "0"
-    container.style.width = "816px" // ~ 8.5in @ 96dpi if you want consistent layout
-
-    // copy <style> from the generated <head> into the container so html2pdf sees it
-    const styleText = doc.head?.querySelector("style")?.textContent || ""
-    if (styleText) {
-      const styleEl = document.createElement("style")
-      styleEl.textContent = styleText
-      container.appendChild(styleEl)
+    if (!generatedResume) {
+      toast({ title: "No resume to download", description: "Generate a resume first.", variant: "destructive" })
+      return
     }
 
-    // move the generated <body> content under container
-    // (clone so we don't disturb the parsed doc)
-    const bodyClone = doc.body.cloneNode(true) as HTMLElement
-    container.appendChild(bodyClone)
+    try {
+      // UMD lib: require or dynamic import is fine
+      const html2pdf: any = require("html2pdf.js")
 
-    document.body.appendChild(container)
+      // Parse the full HTML you generated on the server
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(generatedResume, "text/html")
 
-    const filename = `${(resumeData.personal.firstName || "resume").replace(/\s+/g, "_")}.pdf`
+      // Build a hidden container in THIS document so styles apply
+      const container = document.createElement("div")
+      container.style.position = "fixed"
+      container.style.background = "#fff";
+      container.style.left = "-99999px"
+      container.style.top = "0"
+      container.style.width = "816px" // ~ 8.5in @ 96dpi if you want consistent layout
 
-    await html2pdf()
-      .from(container)
-      .set({
-        margin: 0.4,
-        filename,
-        image: { type: "jpeg", quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-      })
-      .save()
+      // copy <style> from the generated <head> into the container so html2pdf sees it
+      const styleText = doc.head?.querySelector("style")?.textContent || ""
+      if (styleText) {
+        const styleEl = document.createElement("style")
+        styleEl.textContent = styleText
+        container.appendChild(styleEl)
+      }
 
-    document.body.removeChild(container)
-    toast({ title: "Resume downloaded", description: `${filename} saved.` })
-  } catch (err) {
-    console.error("download resume error", err)
-    toast({ title: "Download failed", description: "Could not create PDF.", variant: "destructive" })
+      // move the generated <body> content under container
+      // (clone so we don't disturb the parsed doc)
+      const bodyClone = doc.body.cloneNode(true) as HTMLElement
+      container.appendChild(bodyClone)
+
+      document.body.appendChild(container)
+
+      const filename = `${(resumeData.personal.firstName || "resume").replace(/\s+/g, "_")}.pdf`
+
+      await html2pdf()
+        .from(container)
+        .set({
+          margin: 0.4,
+          filename,
+          image: { type: "jpeg", quality: 0.95 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+        })
+        .save()
+
+      document.body.removeChild(container)
+      toast({ title: "Resume downloaded", description: `${filename} saved.` })
+    } catch (err) {
+      console.error("download resume error", err)
+      toast({ title: "Download failed", description: "Could not create PDF.", variant: "destructive" })
+    }
   }
-}
 
 
 
   const previewResume = () => {
-  if (!generatedResume) {
-    toast({ title: "No resume generated", description: "Generate a resume first.", variant: "destructive" })
-    return
-  }
-  const w = window.open("", "_blank", "noopener,noreferrer")
-  if (!w) {
-    toast({ title: "Popup blocked", description: "Allow popups to preview resume", variant: "destructive" })
-    return
-  }
+    if (!generatedResume) {
+      toast({ title: "No resume generated", description: "Generate a resume first.", variant: "destructive" })
+      return
+    }
+    const w = window.open("", "_blank", "noopener,noreferrer")
+    if (!w) {
+      toast({ title: "Popup blocked", description: "Allow popups to preview resume", variant: "destructive" })
+      return
+    }
 
-  // Replace body with parsed content
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(generatedResume, "text/html")
+    // Replace body with parsed content
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(generatedResume, "text/html")
 
-  w.document.replaceChild(
-    w.document.importNode(doc.documentElement, true),
-    w.document.documentElement
-  )
-}
+    w.document.replaceChild(
+      w.document.importNode(doc.documentElement, true),
+      w.document.documentElement
+    )
+  }
 
 
 
@@ -1400,6 +1401,16 @@ export default function ResumePage() {
                         <Button
                           className="mt-4 w-full"
                           onClick={async () => {
+
+                            if (!resumeData.personal.firstName && !resumeData.personal.lastName) {
+                              toast({
+                                title: "Incomplete Data",
+                                description: "Please fill in at least your name before generating.",
+                                variant: "destructive",
+                              })
+                              return
+                            }
+
                             const resumePayload = {
                               personal: resumeData.personal,
                               experiences: resumeData.experiences,
@@ -1431,6 +1442,17 @@ export default function ResumePage() {
                         >
                           Generate Resume
                         </Button>
+
+                        {generatedResume && (
+                          <div className="mt-6">
+                            <h3 className="text-lg font-semibold mb-2">Generated Resume Preview</h3>
+                            <div
+                              className="border rounded p-4 max-h-[600px] overflow-y-auto bg-white"
+                              dangerouslySetInnerHTML={{ __html: generatedResume }}
+                            />
+                          </div>
+                        )}
+
 
                       </CardContent>
 
