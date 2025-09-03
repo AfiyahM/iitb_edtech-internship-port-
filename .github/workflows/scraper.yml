@@ -1,0 +1,26 @@
+name: YouTube Scraper
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    - name: Install dependencies
+      run: pip install google-api-python-client aiohttp
+    - name: Run scraper
+      run: python lib/enhanced_youtube_scraper.py
+    - name: Commit results
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add webscrapper/
+        git commit -m "🤖 Update scraped videos $(date)" || exit 0
+        git push

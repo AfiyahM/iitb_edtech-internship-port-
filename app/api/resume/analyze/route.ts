@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { inflate } from "zlib";
 import { promisify } from "util";
-import { jobAssistant } from "@/lib/gemini"; // Your Gemini wrapper
+import { jobAssistant } from "@/lib/gemini";
 
-// Dynamic imports to avoid initialization issues
 let mammoth: any;
 
 async function getMammothParser() {
@@ -13,88 +12,66 @@ async function getMammothParser() {
   return mammoth;
 }
 
-// Better PDF text extraction that handles compressed content
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   try {
-    // First try to use pdf-parse if available
     try {
-      const pdfParse = (await import("pdf-parse")).default
-      const data = await pdfParse(buffer)
+      const pdfParse = (await import("pdf-parse")).default;
+      const data = await pdfParse(buffer);
       if (data.text && data.text.length > 50) {
-        return data.text
+        return data.text;
       }
     } catch (pdfError: any) {
-      console.log("pdf-parse failed, trying manual extraction:", pdfError?.message || 'Unknown error')
+      console.log("pdf-parse failed, trying manual extraction:", pdfError?.message || 'Unknown error');
     }
 
-    // Manual extraction for compressed PDFs
-    const content = buffer.toString('binary')
-    
-    // Find compressed streams
-    const streamMatches = content.match(/stream\r?\n([\s\S]*?)\r?\nendstream/g)
-    
+    const content = buffer.toString('binary');
+    const streamMatches = content.match(/stream\r?\n([\s\S]*?)\r?\nendstream/g);
+
     if (streamMatches) {
-      let extractedText = ""
-      
+      let extractedText = "";
       for (const streamMatch of streamMatches) {
         try {
-          // Extract the stream content
-          const streamContent = streamMatch.replace(/^stream\r?\n/, '').replace(/\r?\nendstream$/, '')
-          
-          // Try to decompress if it's compressed
-          let decompressed: Buffer
+          const streamContent = streamMatch.replace(/^stream\r?\n/, '').replace(/\r?\nendstream$/, '');
+          let decompressed: Buffer;
           try {
-            decompressed = await promisify(inflate)(Buffer.from(streamContent, 'binary'))
+            decompressed = await promisify(inflate)(Buffer.from(streamContent, 'binary'));
           } catch {
-            // If decompression fails, use as-is
-            decompressed = Buffer.from(streamContent, 'binary')
+            decompressed = Buffer.from(streamContent, 'binary');
           }
-          
-          const streamText = decompressed.toString('utf8')
-          
-          // Extract text operators
-          const textMatches = streamText.match(/\(\(([^)]+)\)\)/g) || []
-          const textContent = textMatches
-            .map(match => match.replace(/\(\(|\)\)/g, ''))
-            .join(' ')
-          
+          const streamText = decompressed.toString('utf8');
+          const textMatches = streamText.match(/\(\(([^)]+)\)\)/g) || [];
+          const textContent = textMatches.map(match => match.replace(/\(\(|\)\)/g, '')).join(' ');
           if (textContent.length > 10) {
-            extractedText += textContent + " "
+            extractedText += textContent + " ";
           }
-          
-          // Also look for TJ and Tj operators
-          const tjMatches = streamText.match(/\[([^\]]+)\]\s*TJ/g) || []
+          const tjMatches = streamText.match(/\[([^\]]+)\]\s*TJ/g) || [];
           const tjContent = tjMatches
             .map(match => {
-              const innerMatch = match.match(/\[([^\]]+)\]/)
-              return innerMatch ? innerMatch[1].replace(/\(\(([^)]+)\)\)/g, '$1') : ''
+              const innerMatch = match.match(/\[([^\]]+)\]/);
+              return innerMatch ? innerMatch[1].replace(/\(\(([^)]+)\)\)/g, '$1') : '';
             })
-            .join(' ')
-          
+            .join(' ');
           if (tjContent.length > 10) {
-            extractedText += tjContent + " "
+            extractedText += tjContent + " ";
           }
-          
         } catch (streamError: any) {
-          console.log("Stream processing failed:", streamError?.message || 'Unknown error')
+          console.log("Stream processing failed:", streamError?.message || 'Unknown error');
         }
       }
-      
       if (extractedText.length > 50) {
-        return extractedText.trim()
+        return extractedText.trim();
       }
     }
-    
-    // Fallback: try to extract any readable text
+
     const readableText = content
-      .replace(/[^\x20-\x7E\n\r\t]/g, '') // Remove non-printable characters
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .trim()
-    
-    return readableText.length > 100 ? readableText : "PDF content extracted (text may be limited)"
+      .replace(/[^\x20-\x7E\n\r\t]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return readableText.length > 100 ? readableText : "PDF content extracted (text may be limited)";
   } catch (error) {
-    console.error("PDF extraction error:", error)
-    return "PDF content could not be extracted"
+    console.error("PDF extraction error:", error);
+    return "PDF content could not be extracted";
   }
 }
 
@@ -105,16 +82,14 @@ export async function POST(req: NextRequest) {
     let targetRole = "";
 
     if (contentType?.includes("multipart/form-data")) {
-      // Handle file upload
       const formData = await req.formData();
       const file = formData.get("resume") as File;
-      targetRole = formData.get("targetRole") as string;
+      targetRole = (formData.get("targetRole") as string) || "";
 
       if (!file) {
         return NextResponse.json({ error: "Resume file is required" }, { status: 400 });
       }
 
-      // Parse file text
       const buffer = Buffer.from(await file.arrayBuffer());
 
       if (file.type === "application/pdf") {
@@ -140,27 +115,23 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
       }
     } else {
-      // Handle JSON request (for existing frontend compatibility)
       const { resumeContent, targetRole: role } = await req.json();
       resumeText = resumeContent;
-      targetRole = role;
+      targetRole = role || "";
 
       if (!resumeText) {
         return NextResponse.json({ error: "Resume content is required" }, { status: 400 });
       }
     }
 
-    // Send parsed text to Gemini for ATS analysis
     const analysis = await jobAssistant.analyzeResumeATS(resumeText);
 
-    // Job-specific optimization if role is given
     let jobOptimization = null;
     if (targetRole) {
       const jobDescription = `Role: ${targetRole}. Focus on relevant skills, problem-solving, and measurable achievements.`;
       jobOptimization = await jobAssistant.optimizeResumeForJob(resumeText, jobDescription);
     }
 
-    // Optional: Ask Gemini to enhance/rewrite the resume text
     const enhancedResume = await jobAssistant.enhanceResume(resumeText);
 
     return NextResponse.json({
