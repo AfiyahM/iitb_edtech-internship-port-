@@ -12,6 +12,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
 import {
@@ -28,6 +41,7 @@ import {
   File,
   X,
   XCircle,
+  ChevronsUpDown,
 } from "lucide-react"
 
 interface Experience {
@@ -86,6 +100,18 @@ interface AnalysisResult {
     description: string
   }>
 }
+
+const SKILLS_DATA = {
+  programming: [
+    "JavaScript", "Python", "Java", "C++", "TypeScript", "Go", "Ruby", "PHP", "Swift", "Kotlin", "Rust", "C#", "HTML", "CSS"
+  ],
+  frameworks: [
+    "React", "Next.js", "Vue.js", "Angular", "Node.js", "Express.js", "Django", "Flask", "Ruby on Rails", "Spring Boot", ".NET", "Tailwind CSS", "Bootstrap"
+  ],
+  tools: [
+    "Git", "GitHub", "Docker", "Kubernetes", "Jira", "Figma", "Postman", "Webpack", "Babel", "AWS", "Google Cloud", "Azure", "Firebase", "MySQL", "PostgreSQL", "MongoDB"
+  ],
+};
 
 export default function ResumePage() {
   const { toast } = useToast()
@@ -382,15 +408,21 @@ export default function ResumePage() {
 
   const addSkill = (category: keyof typeof resumeData.skills, skill: string) => {
     if (skill.trim() && !resumeData.skills[category].includes(skill.trim())) {
-      const updated = [...resumeData.skills[category], skill.trim()]
-      updateResumeData("skills", { ...resumeData.skills, [category]: updated })
+      const updatedSkills = {
+        ...resumeData.skills,
+        [category]: [...resumeData.skills[category], skill.trim()],
+      };
+      setResumeData(prev => ({ ...prev, skills: updatedSkills }));
     }
-  }
+  };
 
   const removeSkill = (category: keyof typeof resumeData.skills, skill: string) => {
-    const updated = resumeData.skills[category].filter((s) => s !== skill)
-    updateResumeData("skills", { ...resumeData.skills, [category]: updated })
-  }
+    const updatedSkills = {
+      ...resumeData.skills,
+      [category]: resumeData.skills[category].filter((s) => s !== skill),
+    };
+    setResumeData(prev => ({ ...prev, skills: updatedSkills }));
+  };
 
   const analyzeBuiltResume = async () => {
     setIsAnalyzing(true)
@@ -1260,36 +1292,67 @@ const previewResume = () => {
                     <Card>
                       <CardHeader>
                         <CardTitle>Skills</CardTitle>
-                        <CardDescription>List your technical and soft skills</CardDescription>
+                        <CardDescription>Select your skills from the lists below.</CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        {Object.entries(resumeData.skills).map(([category, skills]) => (
+                      <CardContent className="space-y-6">
+                        {Object.entries(resumeData.skills).map(([category, selectedSkills]) => (
                           <div key={category}>
-                            <Label className="capitalize">{category.replace(/([A-Z])/g, " $1").trim()}</Label>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {skills.map((skill) => (
-                                <Badge key={skill} variant="secondary" className="cursor-pointer">
-                                  {skill}
-                                  <button
-                                    className="ml-2 text-xs hover:text-red-500"
-                                    onClick={() => removeSkill(category as keyof typeof resumeData.skills, skill)}
-                                  >
-                                    ×
-                                  </button>
-                                </Badge>
-                              ))}
-                            </div>
-                            <Input
-                              className="mt-2"
-                              placeholder={`Add a ${category.replace(/([A-Z])/g, " $1").toLowerCase()}...`}
-                              onKeyPress={(e) => {
-                                if (e.key === "Enter") {
-                                  const input = e.target as HTMLInputElement
-                                  addSkill(category as keyof typeof resumeData.skills, input.value)
-                                  input.value = ""
-                                }
-                              }}
-                            />
+                            <Label className="capitalize text-lg font-medium">{category}</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className="w-full justify-between mt-2 min-h-[50px] h-auto flex-wrap"
+                                >
+                                  <div className="flex flex-wrap gap-2 items-center">
+                                    {selectedSkills.length > 0 ? (
+                                      selectedSkills.map((skill) => (
+                                        <Badge key={skill} variant="secondary">
+                                          {skill}
+                                          <button
+                                            className="ml-2 rounded-full hover:bg-red-200 p-0.5"
+                                            onClick={(e) => {
+                                              e.stopPropagation(); // Prevent popover from opening when removing a skill
+                                              removeSkill(category as keyof typeof resumeData.skills, skill);
+                                            }}
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </button>
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-muted-foreground font-normal">
+                                        Select {category} skills...
+                                      </span>
+                                    )}
+                                  </div>
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command>
+                                  <CommandInput placeholder={`Search for a ${category} skill...`} />
+                                  <CommandList>
+                                    <CommandEmpty>No results found.</CommandEmpty>
+                                    <CommandGroup>
+                                      {SKILLS_DATA[category as keyof typeof SKILLS_DATA]
+                                        .filter(skill => !selectedSkills.includes(skill))
+                                        .map((skill) => (
+                                          <CommandItem
+                                            key={skill}
+                                            onSelect={() => {
+                                              addSkill(category as keyof typeof resumeData.skills, skill)
+                                            }}
+                                          >
+                                            {skill}
+                                          </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         ))}
                       </CardContent>
