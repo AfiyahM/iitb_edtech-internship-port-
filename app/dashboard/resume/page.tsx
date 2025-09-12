@@ -102,6 +102,7 @@ export default function ResumePage() {
   const [enhancedResume, setEnhancedResume] = useState("")
   const [showEnhancedResume, setShowEnhancedResume] = useState(false)
   const [generatedResume, setGeneratedResume] = useState<string | null>(null)
+  const [isResumeGenerated, setIsResumeGenerated] = useState(false)
   const [generatedResumeText, setGeneratedResumeText] = useState<string | null>(null)
   const [previewContent, setPreviewContent] = useState<string>("")
   const [isGenerating, setIsGenerating] = useState(false)
@@ -189,6 +190,12 @@ export default function ResumePage() {
       }))
     }
   }, [user])
+
+  useEffect(() => {
+    if (isResumeGenerated) {
+      setIsResumeGenerated(false);
+    }
+  }, [resumeData]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -607,12 +614,12 @@ export default function ResumePage() {
             <p className="text-muted-foreground">Create an ATS-optimized resume with AI-powered suggestions</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={previewResume} disabled={!generatedResume}>
+            <Button variant="outline" onClick={previewResume} disabled={!isResumeGenerated}>
               <Eye className="h-4 w-4 mr-2" />
               Preview
             </Button>
 
-            <Button onClick={downloadResume} disabled={!generatedResume}>
+            <Button onClick={downloadResume} disabled={!isResumeGenerated}>
               <Download className="h-4 w-4 mr-2" />
               Download PDF
             </Button>
@@ -1430,6 +1437,7 @@ export default function ResumePage() {
                               if (data.success) {
                                 setGeneratedResume(data.resumeHtml)
                                 setGeneratedResumeText(data.resumeText)
+                                setIsResumeGenerated(true);
                                 toast({ title: "Resume generated successfully!" })
                               } else {
                                 toast({ title: "Error", description: data.error, variant: "destructive" })

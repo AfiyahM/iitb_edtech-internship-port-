@@ -8,7 +8,7 @@ function escapeHtml(input: any) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;")
+    .replaceAll("'", "&#39;")
 }
 
 function makePlainText(data: any) {
@@ -18,31 +18,42 @@ function makePlainText(data: any) {
   lines.push(`${p.email || ""} | ${p.phone || ""} | ${p.location || ""}`)
   if (p.linkedin) lines.push(`LinkedIn: ${p.linkedin}`)
   if (p.github) lines.push(`GitHub: ${p.github}`)
+  
   lines.push("\nEDUCATION")
   const ed = data.education || {}
-  lines.push(`${ed.degree || ""} in ${ed.major || ""}`.trim())
   if (ed.university) lines.push(ed.university)
+  lines.push(`${ed.degree || ""} in ${ed.major || ""}`.trim())
   if (ed.gpa) lines.push(`GPA: ${ed.gpa}`)
+  if (ed.graduation) lines.push(`Graduation: ${ed.graduation}`)
+  if (ed.coursework) lines.push(`Relevant Coursework: ${ed.coursework}`)
+  
   lines.push("\nEXPERIENCE")
   ;(data.experiences || []).forEach((exp: any) => {
-    lines.push(`${exp.title || ""} — ${exp.company || ""}`)
-    if (exp.duration) lines.push(exp.duration)
-    if (exp.description) lines.push(exp.description)
-    lines.push("") // blank line
+    if (exp.title && exp.company) {
+      lines.push(`${exp.title || ""} — ${exp.company || ""}`)
+      if (exp.duration) lines.push(exp.duration)
+      if (exp.description) lines.push(exp.description)
+      lines.push("") // blank line
+    }
   })
+  
   lines.push("\nPROJECTS")
   ;(data.projects || []).forEach((proj: any) => {
-    lines.push(`${proj.name || ""}`)
-    if (proj.technologies) lines.push(`Technologies: ${proj.technologies}`)
-    if (proj.link) lines.push(`Link: ${proj.link}`)
-    if (proj.description) lines.push(proj.description)
-    lines.push("")
+    if (proj.name) {
+      lines.push(`${proj.name || ""}`)
+      if (proj.technologies) lines.push(`Technologies: ${proj.technologies}`)
+      if (proj.link) lines.push(`Link: ${proj.link}`)
+      if (proj.description) lines.push(proj.description)
+      lines.push("")
+    }
   })
+  
   lines.push("\nSKILLS")
   const skills = data.skills || {}
   if (skills.programming?.length) lines.push(`Programming: ${skills.programming.join(", ")}`)
   if (skills.frameworks?.length) lines.push(`Frameworks: ${skills.frameworks.join(", ")}`)
   if (skills.tools?.length) lines.push(`Tools: ${skills.tools.join(", ")}`)
+  
   return lines.join("\n")
 }
 
@@ -53,85 +64,147 @@ function makeHtml(data: any) {
   const projects = data.projects || []
   const skills = data.skills || {}
 
-  // Minimal, ATS-friendly HTML (no images, semantic headings, bullet lists)
-  return `<!doctype html>
-<html>
+  return `
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>${escapeHtml(p.firstName)} ${escapeHtml(p.lastName)} - Resume</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume</title>
   <style>
-    /* very simple, ATS-friendly */
-    body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 12pt; margin: 36px; }
-    header { margin-bottom: 12px; }
-    h1 { font-size: 18pt; margin: 0; }
-    .contact { margin-top: 6px; font-size: 10.5pt; color: #333; }
-    h2 { font-size: 11pt; margin-top: 18px; margin-bottom: 6px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-    ul { margin: 0; padding-left: 18px; }
-    li { margin-bottom: 4px; }
-    .muted { color: #333; font-size: 10pt }
-    .section { margin-top: 8px; }
+    body {
+      font-family: 'Times New Roman', serif;
+      font-size: 11pt;
+      line-height: 1.15;
+      margin: 0.5in;
+      color: #000;
+      background: #fff;
+    }
+    h1 {
+      font-size: 16pt;
+      margin: 0 0 8pt 0;
+      text-align: center;
+      font-weight: bold;
+    }
+    h2 {
+      font-size: 12pt;
+      margin: 12pt 0 4pt 0;
+      font-weight: bold;
+      border-bottom: 1px solid #000;
+      padding-bottom: 2pt;
+    }
+    .contact {
+      text-align: center;
+      margin-bottom: 16pt;
+      font-size: 10pt;
+    }
+    .section {
+      margin-bottom: 12pt;
+    }
+    .job-header {
+      font-weight: bold;
+      margin-bottom: 2pt;
+    }
+    .job-duration {
+      font-style: italic;
+      margin-bottom: 4pt;
+    }
+    .job-description {
+      margin-left: 16pt;
+      margin-bottom: 8pt;
+    }
+    ul {
+      margin: 4pt 0;
+      padding-left: 20pt;
+    }
+    li {
+      margin-bottom: 2pt;
+    }
+    .skills-list {
+      margin-left: 16pt;
+    }
+    @media print {
+      body { margin: 0.5in; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>${escapeHtml(p.firstName)} ${escapeHtml(p.lastName)}</h1>
-    <div class="contact">${escapeHtml(p.email)}${p.phone ? " | " + escapeHtml(p.phone) : ""}${p.location ? " | " + escapeHtml(p.location) : ""}</div>
-    <div class="contact">${p.linkedin ? "LinkedIn: " + escapeHtml(p.linkedin) : ""}${p.github ? (p.linkedin ? " | " : "") + "GitHub: " + escapeHtml(p.github) : ""}</div>
-  </header>
+  <h1>${escapeHtml(p.firstName)} ${escapeHtml(p.lastName)}</h1>
+  
+  <div class="contact">
+    ${escapeHtml(p.email)}
+    ${p.phone ? ' | ' + escapeHtml(p.phone) : ''}
+    ${p.location ? ' | ' + escapeHtml(p.location) : ''}
+    <br>
+    ${p.linkedin ? 'LinkedIn: ' + escapeHtml(p.linkedin) : ''}
+    ${p.github ? ' | GitHub: ' + escapeHtml(p.github) : ''}
+  </div>
 
-  <section class="section">
-    <h2>Education</h2>
-    <div class="muted">
-      ${escapeHtml(ed.degree)}${ed.major ? " in " + escapeHtml(ed.major) : ""}<br/>
-      ${escapeHtml(ed.university)} ${ed.gpa ? "• GPA: " + escapeHtml(ed.gpa) : ""} ${ed.graduation ? "• " + escapeHtml(ed.graduation) : ""}
+  ${ed.university || ed.degree || ed.major ? `
+  <div class="section">
+    <h2>EDUCATION</h2>
+    ${ed.university ? `<div class="job-header">${escapeHtml(ed.university)}</div>` : ''}
+    ${ed.degree || ed.major ? `<div>${escapeHtml(ed.degree)} ${ed.major ? 'in ' + escapeHtml(ed.major) : ''}</div>` : ''}
+    ${ed.gpa ? `<div>GPA: ${escapeHtml(ed.gpa)}</div>` : ''}
+    ${ed.graduation ? `<div>Graduation: ${escapeHtml(ed.graduation)}</div>` : ''}
+    ${ed.coursework ? `<div>Relevant Coursework: ${escapeHtml(ed.coursework)}</div>` : ''}
+  </div>
+  ` : ''}
+
+  ${exp.filter((job: any) => job.title && job.company).length > 0 ? `
+  <div class="section">
+    <h2>EXPERIENCE</h2>
+    ${exp.filter((job: any) => job.title && job.company).map((job: any) => `
+      <div class="job-header">${escapeHtml(job.title)} — ${escapeHtml(job.company)}</div>
+      ${job.duration ? `<div class="job-duration">${escapeHtml(job.duration)}</div>` : ''}
+      ${job.description ? `<div class="job-description">${escapeHtml(job.description)}</div>` : ''}
+    `).join('')}
+  </div>
+  ` : ''}
+
+  ${projects.filter((proj: any) => proj.name).length > 0 ? `
+  <div class="section">
+    <h2>PROJECTS</h2>
+    ${projects.filter((proj: any) => proj.name).map((proj: any) => `
+      <div class="job-header">${escapeHtml(proj.name)}</div>
+      ${proj.technologies ? `<div>Technologies: ${escapeHtml(proj.technologies)}</div>` : ''}
+      ${proj.link ? `<div>Link: ${escapeHtml(proj.link)}</div>` : ''}
+      ${proj.description ? `<div class="job-description">${escapeHtml(proj.description)}</div>` : ''}
+    `).join('')}
+  </div>
+  ` : ''}
+
+  ${skills.programming?.length || skills.frameworks?.length || skills.tools?.length ? `
+  <div class="section">
+    <h2>SKILLS</h2>
+    <div class="skills-list">
+      ${skills.programming?.length ? `<div><strong>Programming:</strong> ${skills.programming.join(', ')}</div>` : ''}
+      ${skills.frameworks?.length ? `<div><strong>Frameworks:</strong> ${skills.frameworks.join(', ')}</div>` : ''}
+      ${skills.tools?.length ? `<div><strong>Tools:</strong> ${skills.tools.join(', ')}</div>` : ''}
     </div>
-  </section>
-
-  <section class="section">
-    <h2>Experience</h2>
-    ${exp.map((e: any) => `
-      <div style="margin-bottom:8px;">
-        <div style="font-weight:bold;">${escapeHtml(e.title)} — ${escapeHtml(e.company)}</div>
-        <div class="muted">${escapeHtml(e.duration)}</div>
-        <div>${escapeHtml(e.description).replaceAll('\\n','<br/>')}</div>
-      </div>
-    `).join("")}
-  </section>
-
-  <section class="section">
-    <h2>Projects</h2>
-    ${projects.map((pr: any) => `
-      <div style="margin-bottom:8px;">
-        <div style="font-weight:bold;">${escapeHtml(pr.name)}${pr.link ? " — " + `<a href="${escapeHtml(pr.link)}">${escapeHtml(pr.link)}</a>` : ""}</div>
-        <div class="muted">${pr.technologies ? "Technologies: " + escapeHtml(pr.technologies) : ""}</div>
-        <div>${escapeHtml(pr.description).replaceAll('\\n','<br/>')}</div>
-      </div>
-    `).join("")}
-  </section>
-
-  <section class="section">
-    <h2>Skills</h2>
-    <div class="muted">
-      ${skills.programming?.length ? "<div>Programming: " + escapeHtml(skills.programming.join(", ")) + "</div>" : ""}
-      ${skills.frameworks?.length ? "<div>Frameworks: " + escapeHtml(skills.frameworks.join(", ")) + "</div>" : ""}
-      ${skills.tools?.length ? "<div>Tools: " + escapeHtml(skills.tools.join(", ")) + "</div>" : ""}
-    </div>
-  </section>
-
+  </div>
+  ` : ''}
 </body>
 </html>`
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json()
-    const resumeHtml = makeHtml(body)
-    const resumeText = makePlainText(body)
-
-    return NextResponse.json({ success: true, resumeHtml, resumeText })
-  } catch (err: any) {
-    console.error("generate resume error", err)
-    return NextResponse.json({ success: false, error: (err && err.message) || "Server error" }, { status: 500 })
+    const data = await request.json()
+    
+    const htmlContent = makeHtml(data)
+    const plainTextContent = makePlainText(data)
+    
+    return NextResponse.json({
+      success: true,
+      html: htmlContent,
+      text: plainTextContent
+    })
+  } catch (error) {
+    console.error('Resume generation error:', error)
+    return NextResponse.json(
+      { error: 'Failed to generate resume' },
+      { status: 500 }
+    )
   }
 }
