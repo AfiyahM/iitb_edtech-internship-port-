@@ -1,78 +1,149 @@
-import { createClient } from '@supabase/supabase-js'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
-// Define the resource type for better TypeScript support
-interface Resource {
-  id: string
-  title: string
-  description: string
-  video_id: string
-  youtube_url: string
-  duration: number
-  order_index: number
-  points: number
+interface ProgressItem {
+  resource_id: string
+  completed: boolean
+  learning_path_id: string
 }
 
-export async function GET(
-  request: Request, 
-  { params }: { params: { id: string } }
-) {
+interface EnrollmentItem {
+  learning_path_id: string
+  completed_at: string | null
+}
+
+interface ResourceItem {
+  id: string
+  count?: number
+}
+
+export async function GET() {
   try {
-    const supabase = createClient(
-      'https://zooismbsebfafvyvcmbu.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpvb2lzbWJzZWJmYWZ2eXZjbWJ1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDg2MTMyOCwiZXhwIjoyMDY2NDM3MzI4fQ.n529MSZ-BfflAqnOCBROyCo0gMRMmJkFQ6nYDQfykTY'
-    )
-    
-    const pathId = params.id
-    
-    // Get learning path with all its resources
-    const { data: pathWithResources, error } = await supabase
+    const supabase = createRouteHandlerClient({ cookies })
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError) {
+      console.error('User fetch error:', userError.message)
+      return NextResponse.json({ error: userError.message }, { status: 500 })
+    }
+
+    // For non-authenticated users, return all paths with default values
+    if (!user) {
+      const { data: paths, error: pathsError } = await supabase
+        .from('learning_paths')
+        .select(`
+          *,
+          resources(count)
+        `)
+        .eq('is_active', true)
+
+      if (pathsError) {
+        return NextResponse.json({ error: pathsError.message }, { status: 500 })
+      }
+
+      const formattedPaths = paths?.map(path => ({
+        id: path.id,
+        title: path.title,
+        description: path.description,
+        category: path.category,
+        difficulty: path.difficulty || 'Beginner',
+        estimatedTime: path.estimated_time || '4-6 weeks',
+        skills: path.skills || [],
+        color: path.color || 'bg-blue-500',
+        icon: 'Video',
+        rating: path.rating || 4.5,
+        students: Math.floor(Math.random() * 1000) + 500,
+        instructor: path.instructor || 'Expert Instructors',
+        enrolled: false,
+        completed: false,
+        totalResources: path.resources?.[0]?.count || 0,
+        completedResources: 0,
+        progress: 0
+      })) || []
+
+      return NextResponse.json(formattedPaths)
+    }
+
+    // For authenticated users
+    const userId = user.id
+
+    // Get user's enrolled paths
+    const { data: enrolledPaths, error: enrolledError } = await supabase
+      .from('user_enrollments')
+      .select('learning_path_id, completed_at')
+      .eq('user_id', userId)
+
+    if (enrolledError) {
+      return NextResponse.json({ error: enrolledError.message }, { status: 500 })
+    }
+
+    // Get all active learning paths with resources
+    const { data: paths, error: pathsError } = await supabase
       .from('learning_paths')
       .select(`
         *,
-        resources (
-          id,
-          title,
-          description,
-          video_id,
-          youtube_url,
-          duration,
-          order_index,
-          points
-        )
+        resources(count)
       `)
-      .eq('id', pathId)
-      .single()
-    
-    if (error) {
-      console.error('Database error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      .eq('is_active', true)
+
+    if (pathsError) {
+      return NextResponse.json({ error: pathsError.message }, { status: 500 })
     }
-    
-    if (!pathWithResources) {
-      return NextResponse.json({ error: 'Learning path not found' }, { status: 404 })
+
+    // Get user's progress on all resources
+    const { data: progressData, error: progressError } = await supabase
+      .from('user_progress')
+      .select('resource_id, completed, learning_path_id')
+      .eq('user_id', userId)
+
+    if (progressError) {
+      return NextResponse.json({ error: progressError.message }, { status: 500 })
     }
-    
-    // ✅ Fixed: Explicit typing for sort callback parameters
-    const sortedResources = (pathWithResources.resources as Resource[])?.sort(
-      (a: Resource, b: Resource) => a.order_index - b.order_index
-    ) || []
-    
-    return NextResponse.json({
-      ...pathWithResources,
-      resources: sortedResources,
-      totalResources: sortedResources.length,
-      totalVideos: sortedResources.length
-    })
-    
+
+    // ✅ FIXED: Properly format learning paths with user-specific data
+    const formattedPaths = paths?.map(path => {
+      const enrollment = (enrolledPaths as EnrollmentItem[])?.find(
+        (enroll: EnrollmentItem) => enroll.learning_path_id === path.id
+      )
+      
+      // ✅ FIXED: Filter progress by learning path ID instead of resource ID comparison
+      const pathProgress = (progressData as ProgressItem[])?.filter(
+        (progress: ProgressItem) => progress.learning_path_id === path.id
+      ) || []
+      
+      const completedResources = pathProgress.filter(
+        (progress: ProgressItem) => progress.completed === true
+      ).length
+      
+      const totalResources = path.resources?.[0]?.count || 0
+      const progressPercent = totalResources > 0 ? Math.round((completedResources / totalResources) * 100) : 0
+
+      return {
+        id: path.id,
+        title: path.title,
+        description: path.description,
+        category: path.category,
+        difficulty: path.difficulty || 'Beginner',
+        estimatedTime: path.estimated_time || '4-6 weeks',
+        skills: path.skills || [],
+        color: path.color || 'bg-blue-500',
+        icon: 'Video',
+        rating: path.rating || 4.5,
+        students: Math.floor(Math.random() * 1000) + 500,
+        instructor: path.instructor || 'Expert Instructors',
+        enrolled: !!enrollment,
+        completed: !!enrollment?.completed_at,
+        totalResources: totalResources,
+        completedResources: completedResources,
+        progress: progressPercent
+      }
+    }) || []
+
+    return NextResponse.json(formattedPaths)
+
   } catch (error) {
-    // Proper error handling
-    if (error instanceof Error) {
-      console.error('API Error:', error.message)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    } else {
-      console.error('Unknown error:', error)
-      return NextResponse.json({ error: 'Unknown server error' }, { status: 500 })
-    }
+    console.error('Learning paths API error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { AIChatWidget } from "@/components/ai-chat-widget"
+import { AuthProvider } from "@/providers/auth-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,16 +22,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <AuthProvider>
+          {children}
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
           enableSystem={false}
           disableTransitionOnChange
-        >
+          >
           {children}
           <AIChatWidget />
           <Toaster />
         </ThemeProvider>
+          </AuthProvider>
       </body>
     </html>
   )
