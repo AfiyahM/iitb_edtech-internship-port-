@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from '@/providers/auth-provider'
 import {
   BookOpen,
   Play,
@@ -16,16 +18,13 @@ import {
   Clock,
   Trophy,
   Target,
-  Code,
-  Palette,
-  BarChart,
-  Star,
-  Users,
   Video,
   Loader2,
   ArrowRight,
   PlayCircle,
+  Star
 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 
 interface LearningPath {
   id: string
@@ -37,21 +36,22 @@ interface LearningPath {
   skills: string[]
   color: string
   rating: number
-  totalStudents: number
+  students: number
   enrolled: boolean
   totalResources: number
   completedResources: number
   progress: number
+  instructor: string
 }
 
 interface Resource {
   id: string
   title: string
   description: string
-  videoId: string
-  youtubeUrl: string
+  video_id: string
+  youtube_url: string
   duration: number
-  orderIndex: number
+  order_index: number
   points: number
   completed: boolean
   watchTime: number
@@ -63,11 +63,8 @@ interface Achievement {
   description: string
   icon: string
   color: string
-  type: string
   earned: boolean
-  currentProgress: number
-  requirementValue: number
-  pointsReward: number
+  progress: number
 }
 
 interface UserStats {
@@ -75,11 +72,20 @@ interface UserStats {
   studyStreak: number
   totalWatchTime: number
   pathsCompleted: number
+  videosCompleted: number
 }
 
 export default function LearningPage() {
+  const { user, loading: authLoading } = useAuth() 
   const { toast } = useToast()
   const router = useRouter()
+  const supabase = createClientComponentClient()
+
+  // ✅ Proper state management
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [authUser, setAuthUser] = useState<any>(null)
+  const [isMounted, setIsMounted] = useState(false)
   
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([])
   const [selectedPath, setSelectedPath] = useState<LearningPath | null>(null)
@@ -89,38 +95,111 @@ export default function LearningPage() {
     totalPoints: 0,
     studyStreak: 0,
     totalWatchTime: 0,
-    pathsCompleted: 0
+    pathsCompleted: 0,
+    videosCompleted: 0
   })
-  
-  const [isLoading, setIsLoading] = useState(true)
-  const [isEnrolling, setIsEnrolling] = useState(false)
-  const [weeklyGoal, setWeeklyGoal] = useState({ target: 5, completed: 2 })
 
-  // Fetch learning paths
+  const [isLoading, setIsLoading] = useState(false)
+  const [isEnrolling, setIsEnrolling] = useState(false)
+  const [weeklyGoal] = useState({ target: 5, completed: 2 })
+
+  // ✅ Handle hydration properly
   useEffect(() => {
-    fetchLearningPaths()
-    fetchUserStats()
-    fetchAchievements()
+    setIsMounted(true)
   }, [])
 
-  // Fetch resources when path is selected
-  useEffect(() => {
-    if (selectedPath?.enrolled) {
-      fetchPathResources(selectedPath.id)
+  // ✅ Authentication state management
+   useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        console.log('🔐 Checking authentication status...')
+        
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Auth error:', error)
+          setIsAuthenticated(false)
+          setAuthUser(null)
+        } else if (session?.user) {
+          console.log('✅ User authenticated:', session.user.email)
+          setIsAuthenticated(true)
+          setAuthUser(session.user)
+        } else {
+          console.log('❌ No authenticated session')
+          setIsAuthenticated(false)
+          setAuthUser(null)
+        }
+      } catch (error) {
+        console.error('Auth check error:', error)
+        setIsAuthenticated(false)
+        setAuthUser(null)
+      } finally {
+        setIsAuthLoading(false)
+      }
     }
-  }, [selectedPath])
 
+    checkAuthStatus()
+
+    // ✅ Listen for auth changes with cleanup
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 Auth state change:', event)
+        
+        if (session?.user) {
+          setIsAuthenticated(true)
+          setAuthUser(session.user)
+          console.log('✅ User signed in:', session.user.email)
+        } else {
+          setIsAuthenticated(false)
+          setAuthUser(null)
+          console.log('❌ User signed out')
+        }
+      }
+    )
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+   
+  // ✅ Fetch data after auth is ready
+  useEffect(() => {
+    if (!isAuthLoading && isMounted) {
+      fetchLearningPaths()
+      if (isAuthenticated) {
+        fetchUserStats()
+        fetchAchievements()
+      }
+    }
+  }, [isAuthLoading, isAuthenticated, isMounted])
+
+  // ✅ Safe data fetching
   const fetchLearningPaths = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/learning-paths')
-      const data = await response.json()
-      setLearningPaths(data)
+      console.log('📚 Fetching learning paths...')
       
-      // Set first enrolled path as selected, or first path if none enrolled
-      const enrolledPath = data.find((path: LearningPath) => path.enrolled)
-      setSelectedPath(enrolledPath || data[0])
+      const response = await fetch('/api/learning-paths', {
+        credentials: 'include'
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (Array.isArray(data)) {
+        setLearningPaths(data)
+        const enrolledPath = data.find((path: LearningPath) => path.enrolled)
+        setSelectedPath(enrolledPath || data[0] || null)
+        console.log('✅ Learning paths loaded:', data.length)
+      } else {
+        setLearningPaths([])
+      }
     } catch (error) {
+      console.error('❌ Failed to fetch learning paths:', error)
+      setLearningPaths([])
       toast({
         title: "Error",
         description: "Failed to load learning paths",
@@ -131,21 +210,21 @@ export default function LearningPage() {
     }
   }
 
-  const fetchPathResources = async (pathId: string) => {
-    try {
-      const response = await fetch(`/api/learning-paths/${pathId}/resources`)
-      const data = await response.json()
-      setCurrentResources(data)
-    } catch (error) {
-      console.error('Failed to fetch resources:', error)
-    }
-  }
-
   const fetchUserStats = async () => {
     try {
-      const response = await fetch('/api/user-stats')
-      const data = await response.json()
-      setUserStats(data)
+      const response = await fetch('/api/user-stats', {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setUserStats({
+          totalPoints: data.totalPoints || 0,
+          studyStreak: data.studyStreak || 0,
+          totalWatchTime: data.totalWatchTime || 0,
+          pathsCompleted: data.pathsCompleted || 0,
+          videosCompleted: data.videosCompleted || 0
+        })
+      }
     } catch (error) {
       console.error('Failed to fetch user stats:', error)
     }
@@ -153,32 +232,79 @@ export default function LearningPage() {
 
   const fetchAchievements = async () => {
     try {
-      const response = await fetch('/api/achievements')
-      const data = await response.json()
-      setAchievements(data)
+      const response = await fetch('/api/achievements', {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          setAchievements(data)
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch achievements:', error)
     }
   }
 
-  const enrollInPath = async (pathId: string) => {
-    setIsEnrolling(true)
+  const fetchPathResources = async (pathId: string) => {
     try {
-      const response = await fetch(`/api/learning-paths/${pathId}/enroll`, {
-        method: 'POST'
+      const response = await fetch(`/api/learning-paths/${pathId}/resources`, {
+        credentials: 'include'
       })
-      
       if (response.ok) {
-        await fetchLearningPaths() // Refresh paths
-        toast({
-          title: "🎉 Enrolled Successfully!",
-          description: "You can now start learning with this path.",
-        })
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          setCurrentResources(data)
+        }
       }
     } catch (error) {
+      console.error('Failed to fetch resources:', error)
+    }
+  }
+
+  // ✅ Enrollment with proper auth checks
+  const enrollInPath = async (pathId: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to enroll in courses.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsEnrolling(true)
+    try {
+      console.log('🔄 Starting enrollment for:', pathId)
+      
+      const response = await fetch(`/api/learning-paths/${pathId}/enroll`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Enrollment failed')
+      }
+      
+      console.log('✅ Enrollment successful')
+      toast({
+        title: "🎉 Enrolled Successfully!",
+        description: "You can now start learning!",
+      })
+      
+      // Refresh data
+      await fetchLearningPaths()
+      
+    } catch (error) {
+      console.error('❌ Enrollment error:', error)
       toast({
         title: "Enrollment Failed",
-        description: "Please try again later.",
+        description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive"
       })
     } finally {
@@ -186,60 +312,10 @@ export default function LearningPage() {
     }
   }
 
-  const startVideo = (resourceId: string, videoId: string) => {
-    router.push(`/dashboard/learning/watch?resource=${resourceId}&video=${videoId}`)
-  }
-
-  const markResourceCompleted = async (resourceId: string, watchTime: number) => {
-    try {
-      await fetch('/api/progress', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          resourceId,
-          learningPathId: selectedPath?.id,
-          completed: true,
-          watchTime
-        })
-      })
-      
-      // Refresh data
-      await Promise.all([
-        fetchLearningPaths(),
-        fetchUserStats(),
-        fetchAchievements()
-      ])
-      
-      if (selectedPath) {
-        await fetchPathResources(selectedPath.id)
-      }
-      
-      toast({
-        title: "🎉 Video Completed!",
-        description: "Great job! You earned 100 points!",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update progress",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const getIconComponent = (iconName: string) => {
-    const icons: { [key: string]: any } = {
-      Code,
-      Palette,
-      BarChart,
-      Video,
-      BookOpen,
-      Trophy,
-      Target,
-      Play,
-      Clock
-    }
-    return icons[iconName] || BookOpen
+  const startVideo = (resource: Resource, pathId: string) => {
+    const videoId = resource.video_id
+    const resourceId = resource.id
+    router.push(`/dashboard/learning/watch?resource=${resourceId}&video=${videoId}&path=${pathId}`)
   }
 
   const getDifficultyColor = (difficulty: string) => {
@@ -251,6 +327,20 @@ export default function LearningPage() {
     }
   }
 
+  // ✅ Loading state during auth check or hydration
+  if (!isMounted || isAuthLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Loader2 className="animate-spin h-8 w-8 mx-auto mb-4" />
+            <p>Loading...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -260,40 +350,44 @@ export default function LearningPage() {
             <h1 className="text-3xl font-bold">Learning Paths</h1>
             <p className="text-muted-foreground">Master new skills with curated learning paths</p>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">{userStats.studyStreak}</div>
-              <div className="text-xs text-muted-foreground">Day Streak</div>
+          {isAuthenticated && (
+            <div className="flex items-center gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">{userStats.studyStreak}</div>
+                <div className="text-xs text-muted-foreground">Day Streak</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{userStats.totalPoints}</div>
+                <div className="text-xs text-muted-foreground">Total Points</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{userStats.pathsCompleted}</div>
+                <div className="text-xs text-muted-foreground">Completed</div>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{userStats.totalPoints}</div>
-              <div className="text-xs text-muted-foreground">Total Points</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{userStats.pathsCompleted}</div>
-              <div className="text-xs text-muted-foreground">Completed</div>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Weekly Goal */}
-        <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-800">
-              <Target className="h-5 w-5" />
-              Weekly Learning Goal
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Complete {weeklyGoal.target} videos this week</span>
-              <span className="text-sm text-muted-foreground">
-                {weeklyGoal.completed}/{weeklyGoal.target}
-              </span>
-            </div>
-            <Progress value={(weeklyGoal.completed / weeklyGoal.target) * 100} className="mb-2" />
-          </CardContent>
-        </Card>
+        {/* Weekly Goal - only show if authenticated */}
+        {isAuthenticated && (
+          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-800">
+                <Target className="h-5 w-5" />
+                Weekly Learning Goal
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Complete {weeklyGoal.target} videos this week</span>
+                <span className="text-sm text-muted-foreground">
+                  {weeklyGoal.completed}/{weeklyGoal.target}
+                </span>
+              </div>
+              <Progress value={(weeklyGoal.completed / weeklyGoal.target) * 100} className="mb-2" />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Tabs */}
         <Tabs defaultValue="paths" className="space-y-6">
@@ -311,109 +405,121 @@ export default function LearningPage() {
                 <span>Loading learning paths...</span>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {learningPaths.map((path) => {
-                  const IconComponent = getIconComponent('Video')
-                  return (
-                    <Card
-                      key={path.id}
-                      className="hover:shadow-lg transition-all cursor-pointer group"
-                      onClick={() => setSelectedPath(path)}
-                    >
-                      <CardHeader>
-                        <div className="flex items-center gap-3">
-                          <div className={`p-3 rounded-xl ${path.color} text-white group-hover:scale-105 transition-transform`}>
-                            <IconComponent className="h-6 w-6" />
+              <>
+                {learningPaths.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {learningPaths.map((path) => (
+                      <Card
+                        key={path.id}
+                        className="hover:shadow-lg transition-all cursor-pointer group"
+                        onClick={() => setSelectedPath(path)}
+                      >
+                        <CardHeader>
+                          <div className="flex items-center gap-3">
+                            <div className={`p-3 rounded-xl ${path.color} text-white group-hover:scale-105 transition-transform`}>
+                              <Video className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <CardTitle className="text-lg">{path.title}</CardTitle>
+                                <Badge variant={path.enrolled ? "default" : "outline"}>
+                                  {path.enrolled ? "Enrolled" : "Available"}
+                                </Badge>
+                              </div>
+                              <CardDescription>{path.description}</CardDescription>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <CardTitle className="text-lg">{path.title}</CardTitle>
-                              <Badge variant={path.enrolled ? "default" : "outline"}>
-                                {path.enrolled ? "Enrolled" : "Available"}
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {path.enrolled && (
+                            <div>
+                              <div className="flex items-center justify-between text-sm mb-2">
+                                <span>Progress</span>
+                                <span>{path.completedResources}/{path.totalResources} videos</span>
+                              </div>
+                              <Progress value={path.progress} />
+                            </div>
+                          )}
+                          
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <Video className="h-4 w-4 text-muted-foreground" />
+                              <span>{path.totalResources} videos</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-muted-foreground" />
+                              <span>{path.estimatedTime}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                              <span>{path.rating}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={getDifficultyColor(path.difficulty)}>
+                                {path.difficulty}
                               </Badge>
                             </div>
-                            <CardDescription>{path.description}</CardDescription>
                           </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {path.enrolled && (
-                          <div>
-                            <div className="flex items-center justify-between text-sm mb-2">
-                              <span>Progress</span>
-                              <span>{path.completedResources}/{path.totalResources} videos</span>
-                            </div>
-                            <Progress value={path.progress} />
-                          </div>
-                        )}
-                        
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <Video className="h-4 w-4 text-muted-foreground" />
-                            <span>{path.totalResources} videos</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span>{path.estimatedTime}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                            <span>{path.rating}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={getDifficultyColor(path.difficulty)}>
-                              {path.difficulty}
-                            </Badge>
-                          </div>
-                        </div>
 
-                        <div className="flex flex-wrap gap-2">
-                          {path.skills.slice(0, 3).map((skill) => (
-                            <Badge key={skill} variant="outline" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
-                          {path.skills.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{path.skills.length - 3} more
-                            </Badge>
-                          )}
-                        </div>
+                          <div className="flex flex-wrap gap-2">
+                            {path.skills.slice(0, 3).map((skill) => (
+                              <Badge key={skill} variant="outline" className="text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                            {path.skills.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{path.skills.length - 3} more
+                              </Badge>
+                            )}
+                          </div>
 
-                        <Button
-                          className="w-full"
-                          variant={path.enrolled ? "default" : "outline"}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            if (!path.enrolled) {
-                              enrollInPath(path.id)
-                            }
-                          }}
-                          disabled={isEnrolling}
-                        >
-                          {isEnrolling ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Enrolling...
-                            </>
-                          ) : path.enrolled ? (
-                            <>
-                              Continue Learning
-                              <ArrowRight className="h-4 w-4 ml-2" />
-                            </>
-                          ) : (
-                            "Enroll Now"
-                          )}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
+                          <Button
+                            className="w-full"
+                            variant={path.enrolled ? "default" : "outline"}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (!path.enrolled) {
+                                enrollInPath(path.id)
+                              }
+                            }}
+                            disabled={isEnrolling}
+                          >
+                            {isEnrolling ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Enrolling...
+                              </>
+                            ) : path.enrolled ? (
+                              <>
+                                Continue Learning
+                                <ArrowRight className="h-4 w-4 ml-2" />
+                              </>
+                            ) : (
+                              "Enroll Now"
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">📚</div>
+                    <h3 className="text-xl font-semibold mb-2">No Learning Paths Found</h3>
+                    <p className="text-gray-600 mb-4">
+                      It looks like your learning paths haven't been loaded yet.
+                    </p>
+                    <Button onClick={() => fetchLearningPaths()}>
+                      Refresh Page
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
 
-          {/* Current Progress Tab */}
+          {/* My Progress Tab */}
           <TabsContent value="current" className="space-y-6">
             {selectedPath ? (
               <>
@@ -470,7 +576,7 @@ export default function LearningPage() {
                                   </span>
                                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                                     <Star className="h-3 w-3" />
-                                    {resource.points} points
+                                    {resource.points || 100} points
                                   </span>
                                   {resource.completed && (
                                     <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
@@ -482,22 +588,13 @@ export default function LearningPage() {
                             </div>
                             <div className="flex gap-2">
                               <Button
-                                onClick={() => startVideo(resource.id, resource.videoId)}
+                                onClick={() => startVideo(resource, selectedPath.id)}
                                 variant={resource.completed ? "outline" : "default"}
                                 size="sm"
                               >
                                 {resource.completed ? "Rewatch" : "Watch Now"}
                                 <Play className="h-4 w-4 ml-2" />
                               </Button>
-                              {!resource.completed && (
-                                <Button
-                                  onClick={() => markResourceCompleted(resource.id, 900)}
-                                  variant="outline"
-                                  size="sm"
-                                >
-                                  Mark Complete
-                                </Button>
-                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -519,10 +616,9 @@ export default function LearningPage() {
 
           {/* Achievements Tab */}
           <TabsContent value="achievements" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {achievements.map((achievement) => {
-                const IconComponent = getIconComponent(achievement.icon)
-                return (
+            {achievements.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {achievements.map((achievement) => (
                   <Card
                     key={achievement.id}
                     className={achievement.earned 
@@ -534,31 +630,31 @@ export default function LearningPage() {
                       <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
                         achievement.earned ? "bg-yellow-100" : "bg-gray-100"
                       }`}>
-                        <IconComponent className={`h-8 w-8 ${achievement.color}`} />
+                        <Trophy className={`h-8 w-8 ${achievement.color}`} />
                       </div>
                       <h3 className="font-semibold mb-2">{achievement.title}</h3>
                       <p className="text-sm text-muted-foreground mb-3">{achievement.description}</p>
                       {achievement.earned ? (
-                        <div className="space-y-2">
-                          <Badge className="bg-yellow-600 text-white">Earned!</Badge>
-                          <p className="text-xs text-yellow-700">+{achievement.pointsReward} points</p>
-                        </div>
+                        <Badge className="bg-yellow-600 text-white">Earned!</Badge>
                       ) : (
                         <div className="space-y-2">
-                          <Progress 
-                            value={Math.min((achievement.currentProgress / achievement.requirementValue) * 100, 100)} 
-                            className="h-2" 
-                          />
+                          <Progress value={achievement.progress} className="h-2" />
                           <p className="text-xs text-muted-foreground">
-                            {achievement.currentProgress}/{achievement.requirementValue}
+                            {achievement.progress}% Complete
                           </p>
                         </div>
                       )}
                     </CardContent>
                   </Card>
-                )
-              })}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Achievements Yet</h3>
+                <p className="text-muted-foreground">Complete videos and courses to earn achievements!</p>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

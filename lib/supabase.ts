@@ -1,11 +1,39 @@
 import { createClient } from "@supabase/supabase-js"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+//import type { Database } from "@/types/database"
 
+// ✅ Use environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Singleton Supabase Client wrapper
+class SupabaseClient {
+  private static instance: ReturnType<typeof createClientComponentClient<Database>> | null = null
 
-// Types for our database tables
+  public static getInstance() {
+    if (!SupabaseClient.instance) {
+      // For client-side components (uses Next.js auth helpers + cookies)
+      SupabaseClient.instance = createClientComponentClient<Database>()
+      
+      // 👉 If you only need anon/public access without auth, use:
+      // SupabaseClient.instance = createClient<Database>(supabaseUrl, supabaseAnonKey)
+    }
+    return SupabaseClient.instance
+  }
+}
+
+// ✅ Export singleton instance
+export const supabase = SupabaseClient.getInstance()
+export type Database = {
+  public: {
+    Tables: Record<string, unknown>
+    Views: Record<string, unknown>
+    Functions: Record<string, unknown>
+    Enums: Record<string, unknown>
+  }
+}
+
+// ---------------- Types ----------------
 export interface User {
   id: string
   email: string
