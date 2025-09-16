@@ -61,10 +61,10 @@ import { signOut } from "@/lib/auth"
 
 const topNavigation = [
   { title: "Dashboard", url: "/dashboard", icon: Home, badge: null },
-  { title: "Search Internships", url: "/dashboard/search", icon: Search},
+  { title: "Search Internships", url: "/dashboard/search", icon: Search, badge: null},
   { title: "Resume Builder", url: "/dashboard/resume", icon: FileText, badge: "AI Ready" },
-  { title: "Learning Paths", url: "/dashboard/learning", icon: BookOpen},
-  { title: "Mock Interviews", url: "/dashboard/interviews", icon: MessageSquare},
+  { title: "Learning Paths", url: "/dashboard/learning", icon: BookOpen, badge: null},
+  { title: "Mock Interviews", url: "/dashboard/interviews", icon: MessageSquare, badge: null},
 ]
 
 const sidebarNavigation = [
@@ -72,8 +72,8 @@ const sidebarNavigation = [
     title: "Progress",
     items: [
       { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, badge: null },
-      { title: "Applications", url: "/dashboard/applications", icon: Briefcase, badge: "5 Pending" },
-      { title: "Goals", url: "/dashboard/goals", icon: Target, badge: null },
+      { title: "Applications", url: "/dashboard/applications", icon: Briefcase, badge: null},
+      { title: "Goals", url: "/dashboard/goals", icon: Target, badge: null }
     ],
   },
   {
@@ -102,10 +102,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [searchQuery, setSearchQuery] = useState("")
 
   const [userStats, setUserStats] = useState<UserStats>({
-    profileCompletion: 85,
-    currentStreak: 7,
-    totalPoints: 2450,
-    level: 3,
+    profileCompletion: 0,
+    currentStreak: 0,
+    totalPoints: 0,
+    level: 0,
   })
 
   const [notifications, setNotifications] = useState(3)
