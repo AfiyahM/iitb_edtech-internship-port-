@@ -61,10 +61,10 @@ import { signOut } from "@/lib/auth"
 
 const topNavigation = [
   { title: "Dashboard", url: "/dashboard", icon: Home, badge: null },
-  { title: "Search Internships", url: "/dashboard/search", icon: Search, badge: "12 New" },
+  { title: "Search Internships", url: "/dashboard/search", icon: Search},
   { title: "Resume Builder", url: "/dashboard/resume", icon: FileText, badge: "AI Ready" },
-  { title: "Learning Paths", url: "/dashboard/learning", icon: BookOpen, badge: "67%" },
-  { title: "Mock Interviews", url: "/dashboard/interviews", icon: MessageSquare, badge: "3 New" },
+  { title: "Learning Paths", url: "/dashboard/learning", icon: BookOpen},
+  { title: "Mock Interviews", url: "/dashboard/interviews", icon: MessageSquare},
 ]
 
 const sidebarNavigation = [
