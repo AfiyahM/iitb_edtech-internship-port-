@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import  DashboardLayout  from "@/components/dashboard-layout"
+import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,6 +47,8 @@ interface Internship {
   apply_link: string
   company_logo?: string
   remote: boolean
+  matchPercentage: number;
+  isNew: boolean;
 }
 
 const formatDate = (date: string | Date | null | undefined): string => {
@@ -54,10 +56,10 @@ const formatDate = (date: string | Date | null | undefined): string => {
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date
     if (isNaN(dateObj.getTime())) return 'Invalid date'
-    const options: Intl.DateTimeFormatOptions = { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     }
     return dateObj.toLocaleDateString(undefined, options)
   } catch (error) {
@@ -113,7 +115,7 @@ export default function SearchPage() {
         if (data) {
           console.log('Raw data from Supabase:', JSON.stringify(data, null, 2))
           console.log(`Fetched ${data.length} internships`)
-          
+
           // Ensure required fields exist and have proper types
           const processedData = data.map((internship, index) => {
             const processed = {
@@ -130,19 +132,21 @@ export default function SearchPage() {
               deadline: internship.deadline || null,
               created_at: internship.created_at || new Date().toISOString(),
               apply_link: internship.apply_link || '#',
-              remote: Boolean(internship.remote)
+              remote: Boolean(internship.remote),
+              matchPercentage: Math.floor(Math.random() * (98 - 75 + 1) + 75), // Random percentage
+              isNew: index < 3, // Make the first 3 new
             }
             console.log(`Processed internship ${index + 1}:`, processed)
             return processed
           })
-          
+
           setInternships(processedData)
           setFilteredInternships(processedData)
-          
+
           // Extract unique types and skills
           const types = new Set<string>()
           const skills = new Set<string>()
-          
+
           processedData.forEach(internship => {
             if (internship.type) types.add(internship.type)
             if (Array.isArray(internship.skills)) {
@@ -151,7 +155,7 @@ export default function SearchPage() {
               })
             }
           })
-          
+
           setInternshipTypes(Array.from(types).filter(Boolean))
           setAllSkills(Array.from(skills).filter(Boolean))
         } else {
@@ -274,7 +278,7 @@ export default function SearchPage() {
               Browse and apply for the best internship opportunities
             </p>
           </div>
-          
+
           <div className="w-full md:w-1/2 flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -286,7 +290,7 @@ export default function SearchPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            
+
             <Select>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by type" />
@@ -412,54 +416,42 @@ export default function SearchPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-6">
             {filteredInternships.map((internship) => (
-              <Card key={internship.id} className="flex flex-col h-full">
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">{internship.title}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{internship.company}</p>
+              <Card key={internship.id} className="relative transition-shadow duration-300 hover:shadow-lg">
+                <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-3">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">{internship.title}</h3>
+                      <div className="flex items-center gap-2">
+                        {internship.isNew && <Badge>New</Badge>}
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-green-500 bg-green-100 text-green-600">
+                          {internship.matchPercentage}%
+                        </div>
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => toggleSave(internship.id)}
-                    >
-                      <Heart
-                        className={`h-4 w-4 ${
-                          savedInternships.includes(internship.id)
-                            ? "fill-red-500 text-red-500"
-                            : "text-muted-foreground"
-                        }`}
-                      />
-                    </Button>
+                    <p className="text-sm text-muted-foreground">{internship.company}</p>
+                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span>{internship.remote ? 'Remote' : internship.location}</span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Building className="h-4 w-4" />
+                      <span>{internship.type}</span>
+                    </div>
                   </div>
                 </CardHeader>
-                <CardContent className="flex-1">
-                  <div className="space-y-4">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <MapPin className="mr-2 h-4 w-4" />
-                      {internship.remote ? 'Remote' : internship.location}
-                    </div>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Clock className="mr-2 h-4 w-4" />
-                      {internship.duration}
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {internship.skills.slice(0, 3).map((skill) => (
-                        <Badge key={skill} variant="secondary">
-                          {skill}
-                        </Badge>
-                      ))}
-                      {internship.skills.length > 3 && (
-                        <Badge variant="outline" className="text-muted-foreground">
-                          +{internship.skills.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
+                <CardContent className="pb-4">
+                  <div className="flex flex-wrap gap-2">
+                    {internship.skills.slice(0, 4).map((skill) => (
+                      <Badge key={skill} variant="secondary">
+                        {skill}
+                      </Badge>
+                    ))}
                   </div>
+                  <p className="mt-3 text-sm text-muted-foreground line-clamp-2">
+                    {internship.description}
+                  </p>
                 </CardContent>
                 <div className="p-6 pt-0">
                   <div className="flex justify-between items-center">
@@ -503,11 +495,10 @@ export default function SearchPage() {
                     onClick={() => toggleSave(selectedInternship.id)}
                   >
                     <Heart
-                      className={`h-4 w-4 ${
-                        savedInternships.includes(selectedInternship.id)
-                          ? "fill-red-500 text-red-500"
-                          : "text-muted-foreground"
-                      }`}
+                      className={`h-4 w-4 ${savedInternships.includes(selectedInternship.id)
+                        ? "fill-red-500 text-red-500"
+                        : "text-muted-foreground"
+                        }`}
                     />
                   </Button>
                 </div>
