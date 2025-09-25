@@ -823,3 +823,8 @@ Format: {"score": 8, "feedback": "...", "strengths": ["..."], "improvements": ["
     }
   }
 }
+
+// Add the missing generateChatResponse function for the chat API
+export async function generateChatResponse(message: string, context?: string): Promise<JobAssistantResponse> {
+  return await jobAssistant.sendMessage(message, context)
+}

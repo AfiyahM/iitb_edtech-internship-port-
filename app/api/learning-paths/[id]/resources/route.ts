@@ -4,17 +4,18 @@ import { NextResponse } from 'next/server'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createRouteHandlerClient({ cookies })
     const { data: { user } } = await supabase.auth.getUser()
+    const { id } = await params
 
     // Get all resources for this learning path
     const { data: resources, error } = await supabase
       .from('resources')
       .select('*')
-      .eq('learning_path_id', params.id)
+      .eq('learning_path_id', id)
       .order('order_index', { ascending: true })
 
     if (error) {
@@ -27,7 +28,7 @@ export async function GET(
         .from('user_progress')
         .select('resource_id, completed, watch_time')
         .eq('user_id', user.id)
-        .eq('learning_path_id', params.id)
+        .eq('learning_path_id', id)
 
       // Merge progress with resources
       const resourcesWithProgress = resources?.map(resource => {
