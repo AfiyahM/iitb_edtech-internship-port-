@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, CheckCircle, Play, Pause } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-export default function VideoWatchPage() {
+function VideoWatchPageContent() {
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -256,5 +256,22 @@ export default function VideoWatchPage() {
         </div>
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function VideoWatchPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p>Loading video...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    }>
+      <VideoWatchPageContent />
+    </Suspense>
   )
 }
