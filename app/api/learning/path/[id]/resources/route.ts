@@ -2,10 +2,11 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const { id } = await params
     
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -15,7 +16,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         *,
         user_progress!left(completed, watch_time)
       `)
-      .eq('learning_path_id', params.id)
+      .eq('learning_path_id', id)
       .order('order_index')
     
     if (error) throw error
