@@ -12,10 +12,14 @@ export function useUser() {
     async function fetchUser() {
       try {
         setLoading(true)
+        setError(null) // Clear any previous errors
         const userData = await getCurrentUser()
         setUser(userData)
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch user")
+        // Don't set error for authentication failures - learning paths work without auth
+        console.warn("User authentication failed, but app continues to work:", err)
+        setUser(null)
+        setError(null) // Don't show error to user for auth failures
       } finally {
         setLoading(false)
       }
@@ -26,10 +30,14 @@ export function useUser() {
 
   const refreshUser = async () => {
     try {
+      setError(null) // Clear any previous errors
       const userData = await getCurrentUser()
       setUser(userData)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to refresh user")
+      // Don't set error for authentication failures - learning paths work without auth
+      console.warn("User refresh failed, but app continues to work:", err)
+      setUser(null)
+      setError(null) // Don't show error to user for auth failures
     }
   }
 

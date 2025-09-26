@@ -1,50 +1,37 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { getStaticLearningPath } from '@/lib/static-learning-data'
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
-    const { data: { user } } = await supabase.auth.getUser()
     const { id } = await params
 
-    // Get all resources for this learning path
-    const { data: resources, error } = await supabase
-      .from('resources')
-      .select('*')
-      .eq('learning_path_id', id)
-      .order('order_index', { ascending: true })
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    // Get static learning path data
+    const learningPath = getStaticLearningPath(id)
+    
+    if (!learningPath) {
+      return NextResponse.json({ error: 'Learning path not found' }, { status: 404 })
     }
 
-    // If user is authenticated, get their progress
-    if (user) {
-      const { data: progressData } = await supabase
-        .from('user_progress')
-        .select('resource_id, completed, watch_time')
-        .eq('user_id', user.id)
-        .eq('learning_path_id', id)
+    // Return videos as resources without progress tracking
+    const resources = learningPath.videos.map(video => ({
+      id: video.id,
+      title: video.title,
+      description: video.description,
+      video_id: video.video_id,
+      youtube_url: video.youtube_url,
+      duration: video.duration,
+      order_index: video.order_index,
+      points: video.points,
+      completed: false, // Always false since no progress tracking
+      watchTime: 0
+    }))
 
-      // Merge progress with resources
-      const resourcesWithProgress = resources?.map(resource => {
-        const progress = progressData?.find(p => p.resource_id === resource.id)
-        return {
-          ...resource,
-          completed: progress?.completed || false,
-          watchTime: progress?.watch_time || 0
-        }
-      })
-
-      return NextResponse.json(resourcesWithProgress || [])
-    }
-
-    return NextResponse.json(resources || [])
+    return NextResponse.json(resources)
   } catch (error) {
+    console.error('[resources] error:', error)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
