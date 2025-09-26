@@ -82,6 +82,7 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
     const { data: { session }, error } = await supabase.auth.getSession()
     
     if (error || !session) {
+      // Silently return null for unauthenticated users - this is expected for static learning paths
       return null
     }
 
@@ -93,7 +94,8 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
       .single()
 
     if (userError || !user) {
-      console.error("Error fetching user profile:", userError)
+      // Log warning but don't throw error - learning paths work without authentication
+      console.warn("User profile not found, but learning features still available:", userError?.message)
       return null
     }
 
@@ -120,7 +122,8 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
       updated_at: user.updated_at,
     }
   } catch (error) {
-    console.error("Error getting current user:", error)
+    // Log warning but don't throw error - learning paths work without authentication
+    console.warn("Authentication check failed, but learning features still available:", error)
     return null
   }
 }
