@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const GEMINI_API_KEY = 'AIzaSyCt2kteYLp1zXn8MLSG3Ro55BnmAyKaJ78'
+const GEMINI_API_KEY = 'AIzaSyDICb3Lig2xP1e_lFycbiN7CUkMpZPZDMI'
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
 
@@ -751,52 +751,110 @@ Create a professional, structured resume that would impress recruiters at Google
 // Create a singleton instance
 export const jobAssistant = new JobAssistant()
 
-// Export individual functions for backward compatibility
 export async function generateInterviewQuestions(
   type: "technical" | "behavioral" | "system_design",
   role: string,
-  difficulty: "easy" | "medium" | "hard"
+  difficulty: "easy" | "medium" | "hard",
+  domain?: string
 ) {
   try {
-    const prompt = `Generate 5 ${type} interview questions for ${role} (${difficulty} level). Return as JSON array with each question having: question, keyPoints (array), followUp (array), scoringCriteria (string).
+    const prompt = `Generate 5 ${difficulty} level ${type} interview questions for a ${role} role${
+      domain ? ` in the ${domain} domain` : ''
+    }. These must be domain-specific (do not be generic) and focused on practical, real-world interview scenarios for the domain. For each question, provide:
+    - A clear, specific question
+    - 3-5 key points the ideal answer should cover
+    - 2-3 potential follow-up questions
+    - Clear scoring criteria
 
-Format: [{"question": "...", "keyPoints": ["..."], "followUp": ["..."], "scoringCriteria": "..."}]`
+    Format as JSON array: [{
+      "question": "...",
+      "keyPoints": ["..."],
+      "followUp": ["..."],
+      "scoringCriteria": "..."
+    }]`
 
     const result = await jobAssistant.model.generateContent(prompt)
     const response = await result.response
     const text = response.text()
-
+    // Try direct parse first (model may return JSON-only)
     try {
       return JSON.parse(text)
-    } catch (parseError) {
-      // Fallback to simple questions if JSON parsing fails
-      const questions = text.split('\n').filter(q => q.trim()).slice(0, 5)
-      return questions.map((q, index) => ({
-        question: q.replace(/^\d+\.\s*/, ''),
-        keyPoints: [],
-        followUp: [],
-        scoringCriteria: "Evaluate based on clarity, technical accuracy, and completeness"
-      }))
+    } catch (e) {
+      // Fallback 1: extract balanced JSON array starting at first '['
+      const firstIdx = text.indexOf('[')
+      if (firstIdx !== -1) {
+        let depth = 0
+        let endIdx = -1
+        for (let i = firstIdx; i < text.length; i++) {
+          const ch = text[i]
+          if (ch === '[') depth++
+          else if (ch === ']') {
+            depth--
+            if (depth === 0) {
+              endIdx = i
+              break
+            }
+          }
+        }
+
+        if (endIdx !== -1) {
+          const jsonString = text.slice(firstIdx, endIdx + 1)
+          try {
+            return JSON.parse(jsonString)
+          } catch (err) {
+            // continue to next fallback
+            console.error('Failed parsing extracted JSON array:', err)
+          }
+        }
+      }
+
+      // Fallback 2: try to extract inside ```json ... ``` or ``` ... ``` code blocks
+      const codeBlockMatch = text.match(/```(?:json\n)?([\s\S]*?)```/i)
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        const inner = codeBlockMatch[1].trim()
+        try {
+          return JSON.parse(inner)
+        } catch (err) {
+          console.error('Failed parsing JSON from code block:', err)
+        }
+      }
+
+      // If all parsing attempts fail, throw to let caller handle
+      throw new Error('Unable to parse JSON from model output for generateInterviewQuestions')
     }
   } catch (error) {
-    console.error('Error generating interview questions:', error)
-    return []
+    console.error('Error generating questions:', error)
+    return [] // Return empty array if there's an error
   }
 }
 
 export async function evaluateResponse(
   question: string,
   response: string,
-  type: string
+  type: string,
+  keyPoints?: string[],
+  scoringCriteria?: string
 ) {
   try {
-    const prompt = `Evaluate this interview response and return as JSON with: score (1-10), feedback (string), strengths (array), improvements (array).
+    const prompt = `You are an expert interview coach. Evaluate the candidate's ANSWER using ONLY the provided QUESTION, ANSWER, expected key points, and scoring criteria. Consider clarity, correctness, depth, relevance, use of examples, and structure. Score from 1 (poor) to 10 (excellent). Also determine if the answer is correct/complete relative to the expected key points and scoring criteria.
+
+Return VALID JSON ONLY with these fields:
+{
+  "score": number,                  // integer 1-10
+  "matchScore": number,             // 0-100 percent indicating how well the answer matches expected key points
+  "correctness": boolean,           // true if answer covers essential points, else false
+  "feedback": string,               // concise feedback referencing specifics from the answer
+  "strengths": [string],            // 2-4 concise strengths observed in this answer
+  "improvements": [string]         // 2-4 concrete, actionable suggestions to improve
+}
 
 Question: ${question}
-Response: ${response}
+ExpectedKeyPoints: ${JSON.stringify(keyPoints || [])}
+ScoringCriteria: ${scoringCriteria || ''}
+Answer: ${response}
 Type: ${type}
 
-Format: {"score": 8, "feedback": "...", "strengths": ["..."], "improvements": ["..."]}`
+Output JSON only, no surrounding text.`
 
     const result = await jobAssistant.model.generateContent(prompt)
     const aiResponse = await result.response
@@ -808,9 +866,11 @@ Format: {"score": 8, "feedback": "...", "strengths": ["..."], "improvements": ["
       // Fallback response if JSON parsing fails
       return {
         score: 7,
+        matchScore: 70,
+        correctness: false,
         feedback: "Good response with room for improvement",
         strengths: ["Clear communication"],
-        improvements: ["Provide more specific examples"]
+        improvements: ["Provide more specific examples and quantify impact where possible"]
       }
     }
   } catch (error) {
@@ -827,4 +887,108 @@ Format: {"score": 8, "feedback": "...", "strengths": ["..."], "improvements": ["
 // Add the missing generateChatResponse function for the chat API
 export async function generateChatResponse(message: string, context?: string): Promise<JobAssistantResponse> {
   return await jobAssistant.sendMessage(message, context)
+}
+
+// Generate an overall interview report from AI based only on the responses and questions
+export async function generateInterviewReport(
+  responses: Array<{ questionId: number; answer: string; score: number; feedback: string; strengths: string[]; improvements: string[] }>,
+  questions: Array<{ id?: number; question: string }>,
+  config?: { type?: string; role?: string; difficulty?: string; duration?: number }
+) {
+  try {
+    // Ask the model to aggregate per-question evaluations into a clear, evidence-based report.
+    const prompt = `You are an expert interview coach. Using ONLY the provided per-question evaluations (scores, strengths, improvements) and the candidate answers, produce a JSON report that contains:
+    {
+    "overallScore": number, // 0-10, computed based on per-question scores (equal weighting)
+    "perQuestionSummary": [{
+      "questionId": number,
+      "score": number,
+      "matchScore": number, // 0-100 how closely the answer matched expected key points
+      "correctness": boolean,
+      "topStrengths": [string],
+      "topWeaknesses": [string],
+      "feedback": string,
+      "suggestedExercises": [string]
+    }],
+    "topStrengths": [string], // top 3 strengths across answers
+    "topWeaknesses": [string], // top 3 weaknesses across answers
+    "competencyByTopic": [{"topic": string, "level": number}], // levels 0-10
+    "recommendedResources": [{"title": string, "url": string}],
+    "prioritizedLearningPlan": [string], // 4 short steps prioritized
+    "actionableSuggestions": [string], // 4 prioritized action items
+    "summary": string // 1-2 sentence concise summary
+   }
+
+    Config: ${JSON.stringify(config || {})}
+    Questions: ${JSON.stringify(questions)}
+    Responses (with per-question evaluations): ${JSON.stringify(responses)}
+
+    IMPORTANT: Base conclusions only on the provided data. Output VALID JSON ONLY, nothing else.`
+
+    const result = await jobAssistant.model.generateContent(prompt)
+    const aiResp = await result.response
+    const text = aiResp.text()
+
+    try {
+      const parsed = JSON.parse(text)
+      // If overallScore missing, compute from responses
+      if (!parsed.overallScore) {
+        const avg = responses.length ? Math.round((responses.reduce((s, r) => s + (r.score || 0), 0) / responses.length) * 10) / 10 : 0
+        parsed.overallScore = avg
+      }
+      return parsed
+    } catch (err) {
+      // Fallback: synthesize a simple, evidence-based report from provided data
+      const avg = responses.length ? Math.round((responses.reduce((s, r) => s + (r.score || 0), 0) / responses.length) * 10) / 10 : 0
+      const perQuestionSummary = responses.map((r) => ({
+        questionId: r.questionId,
+        score: r.score || 0,
+        matchScore: Math.round(((r.score || 0) / 10) * 100),
+        correctness: (r.score || 0) >= 6,
+        topStrengths: (r.strengths || []).slice(0, 3),
+        topWeaknesses: (r.improvements || []).slice(0, 3),
+        feedback: r.feedback || '',
+        suggestedExercises: [(r.improvements || []).slice(0, 2).map((s: string) => `Practice: ${s}`).join('; ')]
+      }))
+      const allStrengths = responses.flatMap((r) => r.strengths || [])
+      const allImprovements = responses.flatMap((r) => r.improvements || [])
+      // basic competency by topic synthesis: use keywords from key points
+      const topics = Array.from(new Set(allStrengths.concat(allImprovements))).slice(0, 5)
+      const competencyByTopic = topics.map((t, i) => ({ topic: t, level: Math.max(3, 8 - i) }))
+
+      return {
+        overallScore: avg,
+        perQuestionSummary,
+        topStrengths: Array.from(new Set(allStrengths)).slice(0, 3),
+        topWeaknesses: Array.from(new Set(allImprovements)).slice(0, 3),
+        competencyByTopic,
+        recommendedResources: [
+          { title: 'Official Docs', url: 'https://developer.mozilla.org/' },
+        ],
+        prioritizedLearningPlan: [
+          'Review the identified weak topics and study official documentation',
+          'Practice small focused exercises for each weak point',
+          'Implement a small project that uses the weak concepts',
+          'Re-take mock interviews focusing on improved areas'
+        ],
+        actionableSuggestions: [
+          'Practice structuring answers using STAR (Situation, Task, Action, Result).',
+          'Add more specific, quantifiable examples to demonstrate impact.',
+          'Narrate your thought process step-by-step for technical questions.',
+          'Review and rehearse common patterns for behavioral questions.'
+        ],
+        summary: 'Synthesized report: overall performance based on per-question AI evaluations.'
+      }
+    }
+  } catch (error) {
+    console.error('Error generating interview report:', error)
+    return {
+      overallScore: 0,
+      perQuestionSummary: [],
+      topStrengths: [],
+      topWeaknesses: [],
+      actionableSuggestions: [],
+      summary: 'Unable to generate AI report at this time.'
+    }
+  }
 }
