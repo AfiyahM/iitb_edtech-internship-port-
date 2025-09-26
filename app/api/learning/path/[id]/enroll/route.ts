@@ -2,10 +2,11 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const { id } = await params
     
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -17,7 +18,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       .from('user_enrollments')
       .select('id')
       .eq('user_id', user.id)
-      .eq('learning_path_id', params.id)
+      .eq('learning_path_id', id)
       .single()
     
     if (existingEnrollment) {
@@ -29,7 +30,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       .from('user_enrollments')
       .insert({
         user_id: user.id,
-        learning_path_id: params.id
+        learning_path_id: id
       })
     
     if (error) throw error
