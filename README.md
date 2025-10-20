@@ -1,6 +1,6 @@
 # InternDeck - AI-Powered Internship Platform
 
-InternDeck is a comprehensive platform that helps students discover, prepare for, and land their dream internships using AI-powered tools and personalized guidance.
+InternDeck is a comprehensive platform that helps students discover, prepare for, and land their dream internships using AI-powered tools and personalized guidance..
 
 ## Features
 
