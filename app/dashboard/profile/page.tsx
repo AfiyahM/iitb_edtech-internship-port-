@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import  DashboardLayout  from "@/components/dashboard-layout"
+import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,18 +14,53 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
+
+// Extend UserProfile type to include experience and education
+type Experience = {
+  title: string
+  company: string
+  startDate?: string
+  endDate?: string
+  description?: string
+}
+
+type Education = {
+  university: string
+  major: string
+  graduationYear?: string
+}
+
+// If you have a UserProfile type, extend it here or declare it if not imported
+type UserProfile = {
+  first_name?: string
+  last_name?: string
+  email?: string
+  phone?: string
+  location?: string
+  university?: string
+  major?: string
+  graduation_year?: string
+  career_goal?: string
+  bio?: string
+  linkedin?: string
+  github?: string
+  skills?: string[]
+  avatar_url?: string
+  experience?: Experience[]
+  education?: Education[]
+}
 import { updateUserProfile, uploadAvatar } from "@/lib/auth"
-import { 
-  GraduationCap, 
-  Target, 
-  Camera, 
-  Save, 
-  Plus, 
-  X, 
-  Github, 
-  Linkedin, 
-  Loader2, 
-  Edit, 
+import {
+  GraduationCap,
+  Target,
+  Camera,
+  Save,
+  Plus,
+  X,
+  Github,
+  Linkedin,
+  Loader2,
+  Edit,
   BookOpen,
   MapPin,
   Building,
@@ -60,6 +95,8 @@ export default function ProfilePage() {
     linkedin: "",
     github: "",
     skills: [] as string[],
+    experience: [] as any[], 
+    education: [] as any[], 
   })
 
   // Update form data when user data loads
@@ -79,13 +116,34 @@ export default function ProfilePage() {
         linkedin: user.linkedin || "",
         github: user.github || "",
         skills: user.skills || [],
+        experience: user.experience || [], // Add this line
+        education: user.education || [],   // Add this line
       })
     }
   }, [user])
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+  const handleInputChange = (
+    field: string,
+    value: string,
+    index?: number,
+    type?: 'experience' | 'education'
+  ) => {
+    if (index !== undefined && type === 'experience') {
+      setFormData((prev) => {
+        const newExperience = [...prev.experience];
+        newExperience[index] = { ...newExperience[index], [field]: value };
+        return { ...prev, experience: newExperience };
+      });
+    } else if (index !== undefined && type === 'education') {
+      setFormData((prev) => {
+        const newEducation = [...prev.education];
+        newEducation[index] = { ...newEducation[index], [field]: value };
+        return { ...prev, education: newEducation };
+      });
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    }
+  };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -139,6 +197,40 @@ export default function ProfilePage() {
       setIsUploadingAvatar(false)
     }
   }
+
+  const addExperience = () => {
+    setFormData((prev) => ({
+      ...prev,
+      experience: [
+        ...prev.experience,
+        { title: "", company: "", startDate: "", endDate: "", description: "" },
+      ],
+    }));
+  };
+
+  const removeExperience = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      experience: prev.experience.filter((_, i) => i !== index),
+    }));
+  };
+
+  const addEducation = () => {
+    setFormData((prev) => ({
+      ...prev,
+      education: [
+        ...prev.education,
+        { university: "", major: "", graduationYear: "" },
+      ],
+    }));
+  };
+
+  const removeEducation = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      education: prev.education.filter((_, i) => i !== index),
+    }));
+  };
 
   const addSkill = () => {
     if (newSkill.trim() && !formData.skills.includes(newSkill.trim())) {
@@ -311,21 +403,32 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Building className="h-6 w-6 text-blue-600" />
+                  {isEditing ? (
+                    formData.experience.map((exp, index) => (
+                      <div key={index} className="space-y-2 border p-4 rounded-lg">
+                        <Input placeholder="Title" value={exp.title} onChange={(e) => handleInputChange('title', e.target.value, index, 'experience')} />
+                        <Input placeholder="Company" value={exp.company} onChange={(e) => handleInputChange('company', e.target.value, index, 'experience')} />
+                        <Textarea placeholder="Description" value={exp.description} onChange={(e) => handleInputChange('description', e.target.value, index, 'experience')} />
+                        <Button variant="destructive" size="sm" onClick={() => removeExperience(index)}>Remove</Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Building className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold">Software Development Intern</h3>
+                        <p className="text-sm text-muted-foreground">TechCorp • Jun 2023 - Aug 2023</p>
+                        <p className="text-sm mt-2">
+                          Developed web applications using React and Node.js, improving user engagement by 25%.
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold">Software Development Intern</h3>
-                      <p className="text-sm text-muted-foreground">TechCorp • Jun 2023 - Aug 2023</p>
-                      <p className="text-sm mt-2">
-                        Developed web applications using React and Node.js, improving user engagement by 25%.
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
                 {isEditing && (
-                  <Button variant="outline" className="mt-4">
+                  <Button variant="outline" className="mt-4" onClick={addExperience}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Experience
                   </Button>
@@ -343,36 +446,14 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 {isEditing ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="university">University</Label>
-                        <Input
-                          id="university"
-                          value={formData.university}
-                          onChange={(e) => handleInputChange("university", e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="major">Major</Label>
-                        <Input
-                          id="major"
-                          value={formData.major}
-                          onChange={(e) => handleInputChange("major", e.target.value)}
-                        />
-                      </div>
+                  formData.education.map((edu, index) => (
+                    <div key={index} className="space-y-2 border p-4 rounded-lg mb-4">
+                      <Input placeholder="University" value={edu.university} onChange={(e) => handleInputChange('university', e.target.value, index, 'education')} />
+                      <Input placeholder="Major" value={edu.major} onChange={(e) => handleInputChange('major', e.target.value, index, 'education')} />
+                      <Input placeholder="Graduation Year" value={edu.graduationYear} onChange={(e) => handleInputChange('graduationYear', e.target.value, index, 'education')} />
+                      <Button variant="destructive" size="sm" onClick={() => removeEducation(index)}>Remove</Button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="graduation_year">Graduation Year</Label>
-                        <Input
-                          id="graduation_year"
-                          value={formData.graduation_year}
-                          onChange={(e) => handleInputChange("graduation_year", e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  ))
                 ) : (
                   <div className="space-y-4">
                     {user.university && (
@@ -384,6 +465,12 @@ export default function ProfilePage() {
                       </div>
                     )}
                   </div>
+                )}
+                {isEditing && (
+                  <Button variant="outline" className="mt-4" onClick={addEducation}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Education
+                  </Button>
                 )}
               </CardContent>
             </Card>

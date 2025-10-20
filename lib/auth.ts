@@ -16,6 +16,19 @@ export interface UserProfile {
   github?: string
   bio?: string
   skills: string[]
+  // Optional arrays for profile experience and education
+  experience?: Array<{
+    title?: string
+    company?: string
+    startDate?: string
+    endDate?: string
+    description?: string
+  }>
+  education?: Array<{
+    university?: string
+    major?: string
+    graduationYear?: string
+  }>
   created_at: string
   updated_at: string
 }
@@ -99,6 +112,9 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
       avatar_url: user.avatar_url,
       phone: user.phone,
       location: user.location,
+      // Provide optional arrays for experience and education if present in DB
+      experience: user.experience || [],
+      education: user.education || [],
       bio: user.bio,
       linkedin: user.linkedin,
       github: user.github,
